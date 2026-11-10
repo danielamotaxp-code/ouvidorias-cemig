@@ -1,0 +1,3 @@
+/* Dentro do portal único: sem cabeçalho próprio e nas cores da WattWise (rosa) */
+html.plat-embutido .brand, html.plat-embutido #userBox { display: none !important; }
+html.plat-embutido:root { --accent: #d23c80; --accent-soft: #fde3ee; }
