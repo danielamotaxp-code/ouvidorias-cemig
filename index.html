@@ -301,7 +301,6 @@
     </button>
   </div>
   <div id="regBanner"></div>
-  <div id="setupResult"></div>
   <div class="toolbar">
     <div class="search">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -1006,7 +1005,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const b = $('regBanner');
     if(!token) b.innerHTML = setupHtml();
     else if(dbStatus === 'loading') b.innerHTML = `<div class="banner info">Carregando o registro…</div>`;
-    else if(dbStatus === 'semchave') b.innerHTML = `<div class="banner warn">A chave de acesso ao repositório de dados expirou ou foi revogada. Gere uma nova chave e refaça a configuração.</div>` + setupHtml();
+    else if(dbStatus === 'semchave') b.innerHTML = `<div class="banner warn">A chave de acesso ao registro expirou ou foi revogada. Avise a Daniela.</div>`;
     else if(dbStatus === 'error') b.innerHTML = `<div class="banner warn">Não foi possível acessar o registro agora. Verifique a internet e recarregue a página.</div>`;
     else b.innerHTML = '';
     const pronto = !!token && dbStatus === 'ok';
@@ -1016,41 +1015,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     ligarSetup();
   }
 
-  // ---- configuração inicial (uma vez): guarda a chave do GitHub criptografada com a senha ----
+  // Sem chave configurada: só avisa (a configuração é feita fora da plataforma).
   function setupHtml(){
-    return `<div class="card" style="margin-bottom:16px">
-      <h3>Configuração inicial do registro</h3>
-      <p style="margin:0 0 12px;font-size:14px;color:#2f3833">Cole aqui a chave de acesso do GitHub (fine-grained token com permissão <b>Contents: Read and write</b> só no repositório <b>${esc(CFG.repo)}</b>). A página guarda a chave criptografada com a senha de acesso.</p>
-      <div class="field"><label for="stToken">Chave de acesso (token)</label><input id="stToken" type="password" placeholder="github_pat_…" autocomplete="off"></div>
-      <button class="btn primary" id="stGo" type="button">Testar e gerar configuração</button>
-      <div id="stOut" style="margin-top:12px"></div>
-    </div>`;
+    return `<div class="banner warn">O registro não está configurado neste site. Avise a Daniela.</div>`;
   }
-  function ligarSetup(){
-    const go = $('stGo'); if(!go) return;
-    go.onclick = async () => {
-      const tk = $('stToken').value.trim();
-      if(!tk){ $('stToken').focus(); return; }
-      go.disabled = true; $('stOut').innerHTML = '<div class="banner info">Testando a chave…</div>';
-      try{
-        const r = await fetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}`, {headers: {'Authorization': 'Bearer ' + tk, 'Accept': 'application/vnd.github+json'}});
-        if(!r.ok) throw new Error('A chave não abriu o repositório ' + CFG.repo + ' (erro ' + r.status + ').');
-        const j = await r.json();
-        if(j.permissions && j.permissions.push === false) throw new Error('A chave abre o repositório, mas não tem permissão de escrita.');
-        const cifrado = await cifrar(tk, sessao.senha);
-        token = tk; try{ sessionStorage.setItem('ouv_tok', tk); }catch(e){}
-        try{ localStorage.setItem('ouv_cfg_local', cifrado); }catch(e){}
-        $('setupResult').innerHTML = `<div class="card" style="margin-bottom:16px"><div class="banner info"><b>Chave funcionando.</b> Copie o texto abaixo e envie para o Claude (ou cole no arquivo <code>config.js</code> do site) para liberar o registro para todo mundo.</div>
-          <textarea readonly rows="3" style="width:100%;font-family:monospace;font-size:12px;border:1px solid var(--line);border-radius:9px;padding:9px">${esc(cifrado)}</textarea>
-          <button class="btn" id="stCopy" type="button" style="margin-top:8px">Copiar texto</button></div>`;
-        $('stCopy').onclick = () => copiar(cifrado, null, 'Texto de configuração copiado');
-        dbStatus = 'loading'; carregarDadosFixos(); atualizarLista(); iniciarPolling();
-      }catch(e){
-        $('stOut').innerHTML = `<div class="banner warn">${esc(e.message || 'Não foi possível testar a chave.')}</div>`;
-      }
-      go.disabled = false;
-    };
-  }
+  function ligarSetup(){}
 
   // ---- criptografia (PBKDF2 + AES-GCM) ----
   const ITER = 600000;
