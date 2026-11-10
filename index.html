@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ouvidorias Cemig — Gerador de mensagens</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+  :root{
+    --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
+    --accent:#0f7a55; --accent-soft:#e3f2eb; --accent-ink:#0b5c40;
+    --warn-soft:#fdf1e2; --warn-ink:#8a4b0a; --miss:#fff3c4; --miss-ink:#7a5a00; --danger:#b42318; --danger-soft:#fdecea;
+    --radius:12px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{font-family:"Plus Jakarta Sans",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+  button{font:inherit;cursor:pointer}
+  input,textarea,select{font:inherit;color:inherit}
+  a{color:var(--accent-ink)}
+  [hidden]{display:none !important}
+
+  header{background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .hdr{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 28px 0}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff;flex:none}
+  .brand h1{font-size:17px;margin:0;font-weight:700;letter-spacing:-.01em}
+  .brand p{margin:0;font-size:12.5px;color:var(--muted)}
+  .hdr-actions{display:flex;gap:8px;flex-wrap:wrap}
+  .tabs{display:flex;gap:4px;padding:10px 28px 0}
+  .tab{border:0;background:none;padding:9px 14px 11px;font-weight:600;font-size:14px;color:var(--muted);border-bottom:2.5px solid transparent;display:inline-flex;align-items:center;gap:7px}
+  .tab:hover{color:var(--ink)}
+  .tab.on{color:var(--accent-ink);border-bottom-color:var(--accent)}
+
+  .btn{border:1px solid var(--line);background:var(--panel);border-radius:9px;padding:8px 13px;font-size:13.5px;font-weight:600;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+  .btn:hover{border-color:#c9d0ca;background:#fafbf9}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.primary:hover{background:var(--accent-ink)}
+  .btn.big{padding:12px 16px;font-size:14.5px;width:100%}
+  .btn.danger{color:var(--danger);border-color:#f3c7c2}
+  .btn.danger:hover{background:var(--danger-soft)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+
+  .layout{display:grid;grid-template-columns:280px minmax(0,1fr) minmax(0,1.05fr);gap:22px;padding:22px 28px 60px;align-items:start}
+  nav{position:sticky;top:132px}
+  .group-title{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:4px 8px 8px}
+  .group+.group{margin-top:18px}
+  .navitem{display:flex;gap:10px;width:100%;text-align:left;border:1px solid transparent;background:none;border-radius:10px;padding:9px 10px;margin-bottom:3px;color:var(--ink)}
+  .navitem:hover{background:#eceee9}
+  .navitem.active{background:var(--panel);border-color:var(--line);box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .num{flex:none;width:26px;height:26px;border-radius:7px;background:#e8ebe6;color:var(--muted);font-weight:700;font-size:13px;display:grid;place-items:center;margin-top:1px}
+  .navitem.active .num{background:var(--accent);color:#fff}
+  .navitem .n{font-weight:600;font-size:14px;display:block;line-height:1.35}
+  .navitem .d{font-size:12.5px;color:var(--muted);display:block;line-height:1.35;margin-top:2px}
+  .navitem.active .n{color:var(--accent-ink)}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:20px 22px}
+  .card+.card{margin-top:16px}
+  .card h2{font-size:19px;margin:0 0 4px;letter-spacing:-.01em}
+  .card h3{font-size:13px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 12px;font-weight:700}
+  .tags{display:flex;gap:6px;margin-bottom:8px}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);padding:3px 8px;border-radius:6px}
+  .tag.dark{background:var(--accent);color:#fff}
+  .tut p{margin:0 0 10px;color:#2f3833}
+  .tut .label{font-weight:700;color:var(--ink)}
+  .when{display:flex;gap:10px;background:var(--accent-soft);border-radius:10px;padding:11px 13px;margin:12px 0 4px;font-size:14px;color:var(--accent-ink)}
+  .alert{display:flex;gap:10px;background:var(--warn-soft);border-radius:10px;padding:11px 13px;margin-top:10px;font-size:14px;color:#6b3a06}
+  details.more{margin-top:8px}
+  details.more summary{cursor:pointer;font-weight:600;font-size:13.5px;color:var(--accent-ink)}
+  details.more[open] summary{margin-bottom:8px}
+
+  .field{margin-bottom:14px}
+  .field label{display:block;font-weight:600;font-size:13.5px;margin-bottom:5px}
+  .field label .opt{font-weight:500;color:var(--muted)}
+  .field .help{font-size:12.5px;color:var(--muted);margin-top:4px}
+  .field input,.field textarea,.field select{width:100%;border:1px solid #d4dad5;border-radius:9px;padding:9px 11px;background:#fff;outline:none}
+  .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .field.err input{border-color:#e0a14a;box-shadow:0 0 0 3px var(--warn-soft)}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+  .seg{display:inline-flex;border:1px solid #d4dad5;border-radius:9px;overflow:hidden;background:#fff}
+  .seg button{border:0;background:#fff;padding:8px 14px;font-size:13.5px;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;gap:7px}
+  .seg button.on{background:var(--accent);color:#fff}
+  .seg .c{font-size:12px;opacity:.8;font-weight:700}
+  .calc{font-size:13px;margin-top:6px;padding:8px 10px;border-radius:8px}
+  .calc.ok{background:var(--accent-soft);color:var(--accent-ink)}
+  .calc.wait{background:var(--warn-soft);color:#6b3a06}
+  .linkbtn{border:0;background:none;color:var(--muted);font-size:13px;text-decoration:underline;padding:0}
+  .divider{height:1px;background:var(--line);margin:18px 0 16px}
+  .chk{display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;font-weight:600}
+  .chk input{accent-color:var(--accent);width:17px;height:17px}
+
+  .result{position:sticky;top:132px}
+  .status{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px}
+  .pill{font-size:12.5px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+  .pill.ok{background:var(--accent-soft);color:var(--accent-ink)}
+  .pill.miss{background:var(--miss);color:var(--miss-ink)}
+  .out{display:grid;grid-template-columns:150px 1fr auto;gap:8px 12px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line)}
+  .out:last-of-type{border-bottom:0}
+  .out .k{font-size:12.5px;color:var(--muted);font-weight:600}
+  .out .v{font-size:14px;word-break:break-word}
+  .out .v.blank{color:var(--muted);font-style:italic}
+  .copy{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:12.5px;font-weight:600;color:var(--ink);white-space:nowrap}
+  .copy:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .copy.done{background:var(--accent);border-color:var(--accent);color:#fff}
+  .miss{background:var(--miss);color:var(--miss-ink);border-radius:4px;padding:0 4px;font-weight:600}
+  .relato-head{display:flex;justify-content:space-between;align-items:center;margin:18px 0 8px}
+  .relato-head span{font-size:12.5px;color:var(--muted);font-weight:600}
+  .relato{white-space:pre-wrap;background:#fafbf9;border:1px solid var(--line);border-radius:10px;padding:14px 15px;font-size:14px;line-height:1.6}
+  .anexos{list-style:none;padding:0;margin:0}
+  .anexos li{display:flex;gap:10px;align-items:flex-start;padding:7px 0}
+  .anexos input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px}
+  .anexos label{cursor:pointer}
+  .anexos li.checked label{color:var(--muted);text-decoration:line-through}
+  .prog{font-size:12.5px;color:var(--muted);font-weight:600}
+  .regcard{border:1.5px solid #bfe0d0}
+  .regcard .sub{margin:-6px 0 14px;font-size:13px;color:var(--muted)}
+  .regwarn{background:var(--warn-soft);color:#6b3a06;border-radius:9px;padding:9px 12px;font-size:13px;margin-bottom:10px}
+  .regfoot{font-size:12.5px;color:var(--muted);margin-top:8px;text-align:center}
+
+  /* ---------- registro ---------- */
+  .reg{max-width:1180px;margin:0 auto;padding:26px 28px 60px}
+  .reg-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+  .reg-head h2{margin:0;font-size:21px;letter-spacing:-.01em}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .search{flex:1;min-width:220px;max-width:380px;position:relative}
+  .search input{width:100%;border:1px solid #d4dad5;border-radius:9px;padding:8px 11px 8px 34px;background:#fff;font-size:13.5px;outline:none}
+  .search input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--soft)}
+  .chips{display:flex;gap:6px}
+  .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:var(--muted)}
+  .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+  .toolbar select{border:1px solid #d4dad5;border-radius:9px;padding:7px 10px;background:#fff;font-size:13.5px;color:var(--ink)}
+  .list{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .lrow{display:grid;grid-template-columns:96px 90px minmax(0,2.2fr) minmax(0,1.3fr) minmax(0,1fr) 128px 40px;gap:14px;align-items:center;padding:13px 18px;border-bottom:1px solid var(--line)}
+  .lrow:last-child{border-bottom:0}
+  .lrow.head{background:#fafbf9;padding-top:9px;padding-bottom:9px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft)}
+  .lrow.flash{animation:flash 2.2s ease-out}
+  @keyframes flash{0%,30%{background:var(--accent-soft)}100%{background:transparent}}
+  .date{font-size:13.5px;font-variant-numeric:tabular-nums}
+  .date small{display:block;color:var(--soft);font-size:12px}
+  .rchip{display:inline-block;font-weight:700;font-size:12px;background:#eef1ed;color:#3b4842;padding:3px 8px;border-radius:6px;white-space:nowrap}
+  .who{font-weight:600;font-size:14px;line-height:1.35;word-break:break-word}
+  .sub2{font-size:12.5px;color:var(--soft);font-variant-numeric:tabular-nums;margin-top:1px;word-break:break-word}
+  .prot{font-size:13.5px;font-variant-numeric:tabular-nums;display:flex;align-items:center;gap:4px}
+  .prot .none{color:var(--soft)}
+  .resp{font-size:13.5px;color:#3b4842}
+  .ret{border:1px solid;border-radius:999px;padding:4px 10px;font-size:12.5px;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+  .ret.no{background:var(--warn-soft);border-color:#f2d6b3;color:var(--warn-ink)}
+  .ret.yes{background:var(--accent-soft);border-color:#bfe0d0;color:var(--accent-ink)}
+  .ret .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .ret:disabled{cursor:default}
+  .iconbtn{border:1px solid transparent;background:none;border-radius:7px;padding:4px 6px;color:var(--soft);line-height:0}
+  .iconbtn:hover{border-color:var(--line);background:#fff;color:var(--ink)}
+  .iconbtn:disabled{visibility:hidden}
+  .empty{padding:48px 20px;text-align:center;color:var(--muted)}
+  .empty b{display:block;color:var(--ink);font-size:15px;margin-bottom:4px}
+  .banner{border-radius:10px;padding:11px 14px;font-size:13.5px;margin-bottom:14px}
+  .banner.warn{background:var(--warn-soft);color:#6b3a06}
+  .banner.info{background:#eef3f8;color:#25425f}
+  .count-note{font-size:12.5px;color:var(--soft);margin-top:10px}
+
+  .modal-bg{position:fixed;inset:0;background:rgba(20,28,24,.35);display:none;align-items:center;justify-content:center;z-index:20;padding:20px}
+  .modal-bg.open{display:flex}
+  .modal{background:#fff;border-radius:14px;max-width:620px;width:100%;padding:22px 24px;box-shadow:0 20px 50px rgba(0,0,0,.18);max-height:92vh;overflow:auto}
+  .modal h2{margin:0 0 4px;font-size:18px}
+  .modal p.sub{margin:0 0 16px;color:var(--muted);font-size:13.5px}
+  .modal .actions{display:flex;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap}
+  .modal .actions .right{display:flex;gap:8px;margin-left:auto}
+  .confirm-del{background:var(--danger-soft);color:var(--danger);border-radius:9px;padding:10px 12px;font-size:13.5px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+
+
+  .userbox{display:inline-flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600;padding:0 6px 0 2px}
+  .userbox .avatar{width:28px;height:28px;border-radius:50%;background:var(--accent-soft);display:grid;place-items:center;font-size:14px}
+  .login{position:fixed;inset:0;z-index:50;background:linear-gradient(160deg,#eaf4ee,#f5f6f3 55%);display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:28px 28px 24px;width:100%;max-width:380px;box-shadow:0 18px 50px rgba(15,60,40,.10)}
+  .login-card h2{margin:0;font-size:21px;letter-spacing:-.01em}
+  .login-card .sub{margin:2px 0 20px;color:var(--muted);font-size:14px}
+  .lg-err{color:var(--danger);font-size:13.5px;font-weight:600;min-height:20px;margin:-4px 0 8px}
+  .toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:9px 16px;border-radius:9px;font-size:13.5px;font-weight:600;opacity:0;transition:.2s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  @media (max-width:1180px){
+    .layout{grid-template-columns:250px minmax(0,1fr)}
+    .result{position:static;grid-column:2}
+  }
+  @media (max-width:900px){
+    .lrow.head{display:none}
+    .lrow{grid-template-columns:1fr auto;gap:6px 12px}
+    .lrow > .c-date{grid-column:1}
+    .lrow > .c-ret{grid-column:2;grid-row:1;justify-self:end}
+    .lrow > .c-recl,.lrow > .c-who,.lrow > .c-prot,.lrow > .c-resp{grid-column:1/-1}
+    .lrow > .c-edit{grid-column:2;grid-row:2;justify-self:end}
+  }
+  @media (max-width:780px){
+    header{position:static}
+    .hdr,.tabs{padding-left:16px;padding-right:16px}
+    .layout,.reg{padding:16px}
+    .layout{grid-template-columns:1fr}
+    nav{position:static}
+    .result{grid-column:auto}
+    .row2,.row3{grid-template-columns:1fr}
+    .out{grid-template-columns:1fr auto}
+    .out .k{grid-column:1/-1}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <div class="brand">
+      <div class="logo" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+      </div>
+      <div>
+        <h1>Ouvidorias Cemig</h1>
+        <p>Wisecoop · Watt Wise — gerar, enviar e registrar</p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="userbox" id="userBox" hidden><span class="avatar">👤</span><span id="userChip"></span><button class="linkbtn" id="btnSair" type="button">Sair</button></span>
+      <button class="btn" id="btnFixos">⚙ Dados fixos</button>
+      <a class="btn primary" href="https://www.cemig.com.br/ouvidoria/" target="_blank" rel="noopener">Abrir site da Ouvidoria ↗</a>
+    </div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button class="tab" data-view="gerar" role="tab">Gerar ouvidoria</button>
+    <button class="tab" data-view="registro" role="tab">Registro de protocolos</button>
+  </div>
+</header>
+
+<!-- =============== ABA GERAR =============== -->
+<div id="viewGerar" class="layout">
+  <nav id="nav"></nav>
+
+  <main>
+    <section class="card tut" id="tutorial"></section>
+    <section class="card">
+      <h3>Preencha os dados desta ouvidoria</h3>
+      <form id="form" autocomplete="off"></form>
+      <button class="linkbtn" id="btnLimpar" type="button">Limpar campos deste tipo</button>
+    </section>
+  </main>
+
+  <aside class="result">
+    <section class="card">
+      <div class="status">
+        <h3 style="margin:0">Campos para o site da Cemig</h3>
+        <span class="pill" id="pill"></span>
+      </div>
+      <div id="outputs"></div>
+      <div class="relato-head">
+        <span>Relato do ocorrido</span>
+        <button class="copy" id="copyRelato">Copiar relato</button>
+      </div>
+      <div class="relato" id="relato"></div>
+    </section>
+    <section class="card">
+      <div class="status" style="margin-bottom:6px">
+        <h3 style="margin:0">Anexos para enviar</h3>
+        <span class="prog" id="prog"></span>
+      </div>
+      <ul class="anexos" id="anexos"></ul>
+    </section>
+    <section class="card regcard">
+      <h3>Registro desta ouvidoria</h3>
+      <p class="sub">Preencha depois de enviar no site da Cemig.</p>
+      <div class="row2">
+        <div class="field" id="fw_prot"><label for="s_protocolo">Nº do protocolo da ouvidoria</label><input id="s_protocolo" placeholder="Gerado pela Cemig ao enviar"></div>
+        <div class="field"><label for="s_ns">Nota de serviço</label><input id="s_ns" readonly tabindex="-1" style="background:#f4f6f3;color:var(--muted)"><div class="help">Preenchida com o protocolo de 1º nível.</div></div>
+      </div>
+      <div class="row3">
+        <div class="field" id="fw_resp"><label for="s_resp">Responsável</label><input id="s_resp" placeholder="Quem abriu"></div>
+        <div class="field"><label for="s_mes">Mês</label><select id="s_mes"></select></div>
+        <div class="field"><label for="s_data">Data de abertura</label><input id="s_data" type="date"></div>
+      </div>
+      <div class="field"><label class="chk"><input type="checkbox" id="s_ret"> Já teve retorno da Cemig</label></div>
+      <div id="regWarn"></div>
+      <button class="btn primary big" id="btnRegistrar">Registrar ouvidoria →</button>
+      <div class="regfoot" id="regFoot"></div>
+    </section>
+  </aside>
+</div>
+
+<!-- =============== ABA REGISTRO =============== -->
+<div id="viewRegistro" class="reg" hidden>
+  <div class="reg-head">
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+      <h2>Registro de protocolos</h2>
+      <div class="seg" role="group" aria-label="Tipo de registro">
+        <button type="button" data-grupo="cliente" class="on">Clientes <span class="c" id="cntCli">0</span></button>
+        <button type="button" data-grupo="gerador">Geradores <span class="c" id="cntGer">0</span></button>
+      </div>
+    </div>
+    <button class="btn" id="btnPlanilha">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+      Gerar planilha
+    </button>
+  </div>
+  <div id="regBanner"></div>
+  <div id="setupResult"></div>
+  <div class="toolbar">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input type="search" id="fBusca" placeholder="Buscar nome, instalação, UC ou protocolo">
+    </div>
+    <div class="chips" id="fRet">
+      <button class="chip on" data-ret="">Todos</button>
+      <button class="chip" data-ret="nao">Aguardando retorno</button>
+      <button class="chip" data-ret="sim">Com retorno</button>
+    </div>
+    <select id="fMes"><option value="">Todos os meses</option></select>
+  </div>
+  <div class="list" id="list"></div>
+  <div class="count-note" id="countNote"></div>
+</div>
+
+<!-- =============== MODAL DADOS FIXOS =============== -->
+<div class="modal-bg" id="modalFixos">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle" style="max-width:520px">
+    <h2 id="mTitle">Dados fixos</h2>
+    <p class="sub">Usados em todas as ouvidorias. Ficam guardados no repositório privado, valem para toda a equipe e não aparecem no código do site.</p>
+    <div class="field"><label for="fx_nome">Nome (ouvidorias de usina)</label><input id="fx_nome"></div>
+    <div class="row2">
+      <div class="field"><label for="fx_email">E-mail de contato</label><input id="fx_email"></div>
+      <div class="field"><label for="fx_tel">Telefone de contato</label><input id="fx_tel"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="fx_motivo">Motivo do contato</label><input id="fx_motivo"></div>
+      <div class="field"><label for="fx_cnpjww">CNPJ Watt Wise</label><input id="fx_cnpjww"></div>
+    </div>
+    <div class="field"><label for="fx_loginCemig">Login da Watt Wise no sistema da Cemig</label><input id="fx_loginCemig"><div class="help">Aparece no tutorial da Reclamação 5.</div></div>
+    <div class="actions">
+      <span></span>
+      <div class="right"><button class="btn" data-close type="button">Cancelar</button><button class="btn primary" id="fxSave" type="button">Salvar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== MODAL EDITAR REGISTRO =============== -->
+<div class="modal-bg" id="modalReg">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="rTitle">
+    <h2 id="rTitle">Editar registro</h2>
+    <p class="sub" id="rSub"></p>
+    <div class="field"><label for="r_nome" id="r_nome_l">Nome</label><input id="r_nome"></div>
+    <div class="row2">
+      <div class="field"><label for="r_inst">Instalação</label><input id="r_inst"></div>
+      <div class="field"><label for="r_uc">UC</label><input id="r_uc"></div>
+    </div>
+    <div class="row2">
+      <div class="field"><label for="r_prot">Nº protocolo</label><input id="r_prot"></div>
+      <div class="field"><label for="r_ns">Nota de serviço</label><input id="r_ns"></div>
+    </div>
+    <div class="row3">
+      <div class="field"><label for="r_resp">Responsável</label><input id="r_resp"></div>
+      <div class="field"><label for="r_mes">Mês</label><select id="r_mes"></select></div>
+      <div class="field"><label for="r_data">Data de abertura</label><input id="r_data" type="date"></div>
+    </div>
+    <div class="field"><label for="r_recl">Reclamação</label><select id="r_recl"></select></div>
+    <div class="field"><label for="r_motivo">Motivo</label><input id="r_motivo"></div>
+    <div class="field"><label class="chk"><input type="checkbox" id="r_ret"> Já teve retorno da Cemig</label></div>
+    <div class="field"><label for="r_obs">Observações <span class="opt">(opcional)</span></label><textarea id="r_obs" rows="2" placeholder="Ex.: resposta recebida, próximos passos"></textarea></div>
+    <div id="delConfirm"></div>
+    <div class="actions">
+      <button class="btn danger" id="rDel" type="button">Excluir</button>
+      <div class="right"><button class="btn" data-close type="button">Cancelar</button><button class="btn primary" id="rSave" type="button">Salvar</button></div>
+    </div>
+  </div>
+</div>
+
+
+<!-- =============== LOGIN =============== -->
+<div class="login" id="login" hidden>
+  <form class="login-card" id="lgForm" autocomplete="off">
+    <div class="logo" aria-hidden="true" style="width:44px;height:44px;border-radius:12px;margin-bottom:14px">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg>
+    </div>
+    <h2>Ouvidorias Cemig</h2>
+    <p class="sub">Entre para gerar e registrar ouvidorias.</p>
+    <div class="field"><label for="lgUser">Quem é você?</label><select id="lgUser"></select></div>
+    <div class="field"><label for="lgPass">Senha</label><input id="lgPass" type="password" inputmode="numeric" autocomplete="current-password"></div>
+    <div class="lg-err" id="lgErr"></div>
+    <button class="btn primary big" id="lgBtn" type="submit">Entrar</button>
+  </form>
+</div>
+
+<div class="toast" id="toast">Copiado!</div>
+
+<script>
+(function(){
+  // ---------- armazenamento local (só conveniências deste navegador) ----------
+  const store = {
+    get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+    set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+
+  const FIXOS_PADRAO = {
+    nome: 'Cooperativa de Serviços Wisecoop',
+    email: '',
+    tel: '',
+    loginCemig: '',
+    motivo: 'Faturamento Microgeração',
+    cnpjww: '48.769.401/0001-37'
+  };
+  let fixos = Object.assign({}, FIXOS_PADRAO);
+
+  // ---------- utilidades ----------
+  const MESES = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  const MESES_CAP = MESES.map(m => m.charAt(0).toUpperCase() + m.slice(1));
+  const pad = n => String(n).padStart(2,'0');
+  const isoHoje = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const fmtData = s => { if(!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; };
+  const fmtMes = s => { if(!s) return ''; const [y,m] = s.split('-'); return `${MESES[+m-1]}/${y}`; };
+  const listaE = s => {
+    const a = (s||'').split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean);
+    if(a.length <= 1) return a.join('');
+    return a.slice(0,-1).join(', ') + ' e ' + a[a.length-1];
+  };
+  const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+  const addDiasUteis = (dt, n) => { const d = new Date(dt); let c = 0; while(c < n){ d.setDate(d.getDate()+1); const w = d.getDay(); if(w!==0 && w!==6) c++; } return d; };
+  const addDias = (dt, n) => { const d = new Date(dt); d.setDate(d.getDate()+n); return d; };
+  const br = d => d.toLocaleDateString('pt-BR');
+  const hoje = () => { const d = new Date(); d.setHours(0,0,0,0); return d; };
+  const mesAnterior = () => { const d = new Date(); return MESES_CAP[(d.getMonth()+11)%12]; };
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const M = (v, rotulo) => (v && String(v).trim()) ? String(v).trim() : `⟦${rotulo}⟧`;
+  const T = v => (v && String(v).trim()) || '';
+
+  // Nomes: tudo em maiúsculas (ou minúsculas) vira "Nome Normal".
+  const PARTICULAS = new Set(['da','de','do','das','dos','e','di','du','del','la','em']);
+  const SIGLAS = new Set(['LTDA','ME','EPP','EIRELI','SA','S.A','S.A.','S/A','SPE','UFV','GD','GD1','GD2','GDI','GDII','MEI','II','III','IV','VI','VII','VIII','IX','XI','XII','SS','S/S','CNPJ','CPF','ES','EI']);
+  function nomeNormal(s){
+    s = String(s || '').replace(/\s+/g,' ').trim();
+    if(!s) return '';
+    return s.split(' ').map((w, i) => w.split('-').map((p, j) => {
+      const nu = p.toUpperCase();
+      const semPont = nu.replace(/[()\[\],;]/g,'');
+      if(SIGLAS.has(semPont)) return nu;
+      if(/\d/.test(p)) return nu;
+      const lo = p.toLowerCase();
+      if((i > 0 || j > 0) && PARTICULAS.has(lo)) return lo;
+      return lo.charAt(0).toUpperCase() + lo.slice(1);
+    }).join('-')).join(' ');
+  }
+
+  // ---------- campos reaproveitados ----------
+  const F_NOME_USINA = {k:'nomeUsina', label:'Gerador', ph:'Nome do gerador, como na planilha de usinas', nome:true, help:'Vai para o registro de geradores. Não entra no formulário da Cemig.'};
+  const F_END_USINA  = {k:'endereco', label:'Endereço da usina', ph:'Rua, nº, bairro, cidade'};
+  const F_INST_USINA = {k:'instalacao', label:'Nº de instalação da usina', ph:'Ex.: 3015861709'};
+  const F_UC_USINA   = {k:'ucUsina', label:'UC da usina', ph:'Nº da unidade consumidora', opt:true, help:'Só para o registro.'};
+  const F_NOME_CLI   = {k:'nomeCliente', label:'Nome do cliente', ph:'Como está na Cemig', nome:true};
+  const F_END_CLI    = {k:'endereco', label:'Endereço do cliente', ph:'Rua, nº, bairro, cidade'};
+  const F_INST_CLI   = {k:'instalacao', label:'Nº de instalação do cliente', ph:'Ex.: 3014159765'};
+  const F_UC_CLI     = {k:'uc', label:'UC do cliente', ph:'Ex.: 1117.3962.018-53', help:'Vai no relato. Se ficar em branco, o relato usa o nº de instalação.'};
+  const F_PF         = {k:'pessoa', label:'Tipo de cliente', tipo:'pfpj'};
+
+  const regUsina = v => ({nome:T(v.nomeUsina), instalacao:T(v.instalacao), uc:T(v.ucUsina)});
+  const regCli   = v => ({nome:T(v.nomeCliente), instalacao:T(v.instalacao), uc:T(v.uc)});
+  const ucRelato = v => M(T(v.uc) || T(v.instalacao), 'UC do cliente');
+  const ANEXOS_PJ = v => v.pessoa === 'PJ';
+
+  // ---------- tipos (Reclamação 1 a 8, na ordem do Word) ----------
+  const TIPOS = [
+    {
+      num:1, id:'usina-nova', grupo:'Usinas',
+      titulo:'Usinas novas — acompanhamento do cadastro',
+      curto:'Cobrar retorno do cadastro das recebedoras nos 3 primeiros meses',
+      motivoReg:'Acompanhamento do cadastro de usina nova',
+      contato:'wisecoop',
+      objetivo:'Acompanhar e cobrar o retorno da Cemig sobre os protocolos de cadastro das unidades recebedoras vinculadas às usinas novas, garantindo que a conexão dos clientes ocorra corretamente.',
+      explicacao:[
+        'Ao final de cada mês, a equipe envia à Cemig a lista das unidades recebedoras e anexa o protocolo no campo <b>“Ver Mais”</b> da usina, como <b>“Protocolo por anexo Cemig”</b>.',
+        'A ouvidoria serve para confirmar que a Cemig recebeu e analisou os documentos, evitando que as primeiras gerações caiam no saldo da usina em vez de irem para os clientes.'
+      ],
+      quando:'Até o <b>dia 10</b> de cada mês, uma ouvidoria para <b>cada usina nova</b> em conexão, durante os <b>3 primeiros meses</b> de operação.',
+      campos:[F_NOME_USINA, F_END_USINA, F_INST_USINA, F_UC_USINA,
+        {k:'protocolo', label:'Protocolo por anexo Cemig', ph:'Nº do protocolo do fim do mês anterior', help:'Campo “Ver Mais” da usina → “Protocolo por anexo Cemig”.'}],
+      reg:regUsina,
+      protocolo1:v=>M(v.protocolo,'protocolo'),
+      anexos:()=>['Cartão CNPJ da Wisecoop','Estatuto da Wisecoop','“Protocolo por anexo Cemig”'],
+      relato:v=>`Solicitamos a verificação do protocolo nº ${M(v.protocolo,'protocolo')}, referente ao cadastro das unidades consumidoras recebedoras vinculadas à usina nº ${M(v.instalacao,'nº da usina')}.
+
+A solicitação de cadastro foi realizada dentro do prazo, com o envio da listagem dos clientes e da documentação necessária. Entretanto, identificamos que o processo de conexão inicial não está ocorrendo conforme esperado para algumas unidades, pois ocorreu de a 1ª geração de algumas usinas serem direcionadas ao saldo de geração, em vez de ser destinada às unidades recebedoras cadastradas, mesmo com a abertura do protocolo dentro do prazo.
+
+Diante disso, solicitamos a confirmação de que a Cemig recebeu corretamente a solicitação e todos os documentos anexados, bem como a verificação de eventuais pendências que possam impedir a efetivação dos cadastros. Pedimos também que sejam adotadas as providências necessárias para garantir a correta destinação dos créditos de energia às unidades recebedoras indicadas.`
+    },
+    {
+      num:2, id:'sem-resposta', grupo:'Usinas',
+      titulo:'Usinas — Cemig não respondeu o cadastro',
+      curto:'Protocolo de cadastro das recebedoras passou de 30 dias sem resposta',
+      motivoReg:'Cemig não respondeu o cadastro das recebedoras',
+      contato:'wisecoop',
+      objetivo:'Cobrar resposta da Cemig quando o “Protocolo por anexo Cemig” de cadastro das unidades recebedoras não teve retorno dentro do prazo.',
+      explicacao:[
+        'Depois do envio da solicitação de cadastro, a Cemig tem até <b>30 dias</b> para analisar e responder.',
+        'Passado esse prazo sem retorno, abrimos a ouvidoria informando o protocolo original e pedindo andamento e agilidade.'
+      ],
+      quando:'Quando o protocolo de cadastro passar de <b>30 dias</b> sem nenhuma resposta da Cemig.',
+      campos:[F_NOME_USINA, F_END_USINA, F_INST_USINA, F_UC_USINA,
+        {k:'protocolo', label:'Protocolo por anexo Cemig', ph:'Nº do protocolo', help:'Campo “Ver Mais” da usina → “Protocolo por anexo Cemig”.'},
+        {k:'dataProt', label:'Data de abertura do protocolo', tipo:'date', calc:'30dias'}],
+      reg:regUsina,
+      protocolo1:v=>M(v.protocolo,'protocolo'),
+      anexos:()=>['Cartão CNPJ da Wisecoop','Estatuto da Wisecoop','“Protocolo por anexo Cemig”'],
+      relato:v=>`Solicitamos apoio da Ouvidoria referente à unidade geradora nº ${M(v.instalacao,'nº da usina')}, para a qual foi solicitado o cadastramento de unidades recebedoras por meio do protocolo nº ${M(v.protocolo,'protocolo')}, aberto em ${M(fmtData(v.dataProt),'data do protocolo')}.
+
+Até o momento, não recebemos retorno sobre a solicitação, apesar do tempo decorrido desde sua abertura. A ausência de resposta impede o acompanhamento do processo e a conclusão dos cadastros das unidades recebedoras.
+
+Diante disso, solicitamos uma atualização sobre o andamento do protocolo, esclarecimentos quanto a eventuais pendências e agilidade na análise e conclusão da solicitação.
+
+Aguardamos um retorno com as devidas providências.`
+    },
+    {
+      num:3, id:'saldo-geracao', grupo:'Usinas',
+      titulo:'Usinas — energia foi para o saldo de geração',
+      curto:'Cadastro pedido no prazo, mas a 1ª geração caiu no saldo da usina',
+      motivoReg:'Energia enviada para o saldo de geração',
+      contato:'wisecoop',
+      objetivo:'Pedir revisão e regularização dos cadastros das recebedoras solicitados corretamente e no prazo, mas não processados a tempo, e a correção da destinação da energia que foi para o saldo de geração.',
+      explicacao:[
+        'Após a transferência de titularidade da usina para a Cooperativa, cadastramos as unidades recebedoras. Mesmo pedindo no prazo, às vezes a Cemig não processa antes da contabilização da 1ª geração, e a energia vai inteira para o saldo da usina.',
+        'A ouvidoria formaliza a ocorrência, pede a revisão dos protocolos e a correção da destinação da energia, evitando prejuízo à Cooperativa e aos clientes.'
+      ],
+      quando:'Assim que a conta da usina mostrar que a geração do mês foi para o <b>saldo de geração</b> em vez dos clientes.',
+      campos:[F_NOME_USINA, F_END_USINA, F_INST_USINA, F_UC_USINA,
+        {k:'protocolo', label:'Protocolo por anexo Cemig (1º nível)', ph:'Nº do protocolo', help:'Campo “Ver Mais” da usina → “Protocolo por anexo Cemig”.'},
+        {k:'mesTransf', label:'Mês da aprovação da titularidade', tipo:'month'},
+        {k:'ns', label:'Nº da(s) NS de inclusão dos clientes', ph:'Separe por vírgula se forem várias'},
+        {k:'dataNs', label:'Data de registro da NS', tipo:'date'},
+        {k:'mesGeracao', label:'Mês da geração que foi para o saldo', tipo:'month'}],
+      reg:regUsina,
+      protocolo1:v=>M(v.protocolo,'protocolo'),
+      anexos:()=>['Cartão CNPJ da Wisecoop','Estatuto da Wisecoop','“Protocolo por anexo Cemig”','Conta Cemig da usina mostrando o saldo de geração acumulado'],
+      relato:v=>`Solicitamos a revisão e regularização dos cadastros das unidades recebedoras vinculadas à usina nº ${M(v.instalacao,'nº da usina')}.
+
+A titularidade da usina foi transferida para a Cooperativa e aprovada pela Cemig em ${M(fmtMes(v.mesTransf),'mês/ano da aprovação')}. Após a conclusão da transferência, solicitamos a inclusão dos clientes dentro do prazo, por meio das NS nº ${M(listaE(v.ns),'nº da NS')}, registrada em ${M(fmtData(v.dataNs),'data da NS')}.
+
+Entretanto, as solicitações não foram processadas pela Cemig em tempo hábil e, consequentemente, a geração referente a ${M(fmtMes(v.mesGeracao),'mês/ano da geração')} foi integralmente direcionada ao saldo de geração da usina, sem que os créditos fossem destinados às unidades recebedoras previamente indicadas.
+
+Ressaltamos que os pedidos foram realizados corretamente e dentro do prazo. Diante disso, solicitamos a reanálise dos protocolos, a efetivação dos cadastros e a correção da destinação da energia gerada no período, a fim de evitar prejuízos.
+
+Aguardamos um retorno e a regularização com a maior brevidade possível.`
+    },
+    {
+      num:4, id:'sem-contrato', grupo:'Usinas',
+      titulo:'Usinas — clientes “Sem Contrato de Adesão”',
+      curto:'Cemig indeferiu clientes alegando falta de contrato de adesão',
+      motivoReg:'Clientes sem contrato de adesão',
+      contato:'wisecoop',
+      objetivo:'Pedir a revisão dos indeferimentos por “sem contrato de adesão”, mostrando que os documentos dos clientes foram disponibilizados na solicitação original.',
+      explicacao:[
+        'Os contratos e documentos já foram enviados por um link do Google Drive que está no PDF anexado à solicitação original.',
+        'Na ouvidoria, contestamos o indeferimento e anexamos de novo a documentação, junto com um PDF complementar identificando os clientes e o ID de cada contrato.'
+      ],
+      quando:'Quando a resposta do <b>“Cadastro de unidades recebedoras”</b> indeferir clientes por falta de contrato de adesão.',
+      campos:[F_NOME_USINA,
+        {k:'endereco', label:'Endereço da usina onde os clientes estão cadastrados', ph:'Rua, nº, bairro, cidade'},
+        F_INST_USINA, F_UC_USINA,
+        {k:'protocolo', label:'Protocolo “Cadastro de unidades recebedoras”', ph:'Nº do protocolo', help:'Campo “Ver Mais” da usina → “Cadastro de unidades recebedoras”.'},
+        {k:'nomePdf', label:'Nome do PDF do Drive dos clientes', ph:'Exatamente como foi anexado na solicitação'}],
+      reg:regUsina,
+      protocolo1:v=>M(v.protocolo,'protocolo'),
+      anexos:()=>['Cartão CNPJ da Wisecoop','Resposta da Cemig “Cadastro de unidade recebedora”','PDF do Drive dos clientes da usina','PDF com a identificação (ID) de cada cliente com problema'],
+      relato:v=>`Solicitamos a revisão do indeferimento referente ao protocolo ${M(v.protocolo,'protocolo')}, relacionado à alteração das unidades consumidoras participantes do SCEE e dos percentuais de utilização dos excedentes da unidade geradora ${M(v.instalacao,'nº da usina')}.
+
+A Cemig informou que não foi apresentado documento que comprovasse a participação de alguns dos integrantes. Entretanto, a documentação foi devidamente anexada à solicitação. No PDF denominado “${M(v.nomePdf,'nome do PDF do Drive')}”, anexado à solicitação, consta um link para uma pasta no Google Drive contendo a documentação de todas as unidades recebedoras.
+
+Dessa forma, entendemos que o indeferimento desses clientes ocorreu de forma indevida, uma vez que a documentação comprobatória foi, sim, disponibilizada para análise. Solicitamos, portanto, a reanálise do processo e da documentação apresentada, com a consequente aprovação e realização dos cadastros solicitados. Estamos anexando novamente a documentação para facilitar a conferência e a análise.`
+    },
+    {
+      num:5, id:'cpf-divergente', grupo:'Usinas',
+      titulo:'Usinas — “CPF/CNPJ divergente”',
+      curto:'Cemig apontou divergência de CPF/CNPJ que não existe',
+      motivoReg:'CPF/CNPJ divergente',
+      contato:'wisecoop',
+      objetivo:'Contestar o indeferimento por CPF/CNPJ divergente quando o cadastro do cliente na Cemig está correto, e pedir a regularização.',
+      explicacao:[
+        'Antes de abrir, confira no sistema da Cemig (login <b>{{loginCemig}}</b>) se a instalação está no mesmo CPF/CNPJ do contrato assinado.',
+        'A ouvidoria só serve para o caso em que a Cemig errou. Se a divergência existe mesmo, é outro caminho (veja o aviso).'
+      ],
+      quando:'Quando a resposta do cadastro apontar divergência de CPF/CNPJ <b>e</b> o sistema da Cemig mostrar que o cadastro está correto.',
+      aviso:'<b>Divergência real?</b> Se o CPF/CNPJ do contrato não bate com o titular na Cemig, <b>não abra ouvidoria</b>: marque o cliente como <b>“Em análise”</b> no sistema e encaminhe ao time comercial.',
+      campos:[
+        F_NOME_USINA,
+        {k:'endereco', label:'Endereço da usina onde o cliente está cadastrado', ph:'Rua, nº, bairro, cidade'},
+        F_INST_USINA,
+        {k:'protocolo', label:'Protocolo “Cadastro de unidades recebedoras”', ph:'Nº do protocolo', help:'Campo “Ver Mais” da usina → “Cadastro de unidades recebedoras”.'},
+        {k:'uc', label:'UC do cliente', ph:'Unidade consumidora do cliente'},
+        {k:'doc', label:'CPF/CNPJ do cliente', ph:'O mesmo do contrato'}],
+      reg:v=>({nome:T(v.nomeUsina), instalacao:T(v.instalacao), uc:T(v.uc)}),
+      protocolo1:v=>M(v.protocolo,'protocolo'),
+      anexos:()=>['Cartão CNPJ da Wisecoop','Resposta da Cemig “Cadastro de unidade recebedora”','Print da tela da Cemig comprovando o CPF/CNPJ (com data e hora visíveis)','Contrato do cliente com a Watt Wise'],
+      relato:v=>`Solicitamos a revisão do protocolo nº ${M(v.protocolo,'protocolo')}, referente ao cadastro da unidade consumidora ${M(v.uc,'UC do cliente')} na usina ${M(v.instalacao,'nº da usina')}.
+
+A solicitação foi reprovada sob a justificativa de divergência entre o CPF/CNPJ informado e o titular atual da unidade. No entanto, esclarecemos que a unidade consumidora sempre esteve vinculada ao CPF/CNPJ ${M(v.doc,'CPF/CNPJ')}, o mesmo informado no contrato assinado pelo cliente e em toda a documentação apresentada para o cadastro.
+
+Para comprovar essa informação, encaminhamos em anexo uma captura de tela do próprio sistema da Cemig, que demonstra que a unidade está ativa e vinculada ao referido CNPJ.
+
+Diante disso, solicitamos uma nova análise do pedido, considerando os documentos apresentados, e a correção da inconsistência identificada, para que o cadastro seja aprovado e a unidade consumidora seja conectada à usina, permitindo o início do recebimento dos créditos de energia.`
+    },
+    {
+      num:6, id:'fatura-atraso', grupo:'Clientes',
+      titulo:'Clientes — fatura da Cemig em atraso',
+      curto:'Leitura feita, mas a conta do cliente não foi disponibilizada',
+      motivoReg:'Atraso no envio da fatura da Cemig',
+      contato:'cliente',
+      objetivo:'Cobrar a Cemig quando ela atrasa a disponibilização das contas dos clientes da GD, o que atrasa o faturamento da Watt Wise.',
+      explicacao:[
+        'A Cemig faz a leitura normalmente, mas às vezes demora para liberar a conta. Sem a fatura, não conseguimos conferir as informações nem faturar o cliente.',
+        'Abra uma ouvidoria para <b>todo</b> caso de atraso na disponibilização da conta.'
+      ],
+      quando:'Sempre que a leitura já foi feita e a conta ainda não aparece no sistema dentro do prazo habitual.',
+      campos:[F_NOME_CLI, F_END_CLI, F_INST_CLI, F_UC_CLI,
+        {k:'protocolo', label:'Protocolo genérico do dia', ph:'Nº gerado ao consultar uma usina', help:'Entre no login da Watt Wise na Cemig e consulte a instalação de qualquer usina: o sistema mostra um protocolo de atendimento. Pegue um novo a cada dia.'},
+        F_PF],
+      reg:regCli,
+      protocolo1:v=>M(v.protocolo,'protocolo do dia'),
+      anexos:v=>[
+        'Documento do representante da instalação',
+        ...(ANEXOS_PJ(v)?['Cartão CNPJ do cliente','Contrato Social ou Estatuto do cliente']:[]),
+        'Contrato do cliente com a Watt Wise'
+      ],
+      relato:v=>`Solicito esclarecimentos sobre o atraso na disponibilização da fatura de energia da minha unidade consumidora nº ${ucRelato(v)}.
+
+A Cemig já realizou a leitura referente ao período de faturamento, porém, até o momento, minha conta ainda não foi disponibilizada no sistema para consulta e pagamento.
+
+Essa demora está causando transtornos, pois preciso ter acesso à fatura dentro do prazo habitual para realizar o pagamento e acompanhar meu consumo de energia.
+
+Diante disso, solicito esclarecimentos sobre o motivo do atraso e peço que a fatura seja disponibilizada o mais breve possível, garantindo meu acesso à conta e evitando novos atrasos no faturamento.`
+    },
+    {
+      num:7, id:'cadastro-pendente', grupo:'Clientes',
+      titulo:'Clientes — cadastrado na usina, sem informações ainda',
+      curto:'Cobrar a conclusão do cadastro 30 dias antes do prazo de 60 dias úteis',
+      motivoReg:'Cadastro na usina sem conclusão',
+      contato:'cliente',
+      objetivo:'Evitar atraso na conclusão do cadastro do cliente na usina e no início da injeção de créditos.',
+      explicacao:[
+        'Depois da assinatura do contrato, a Cemig tem até <b>60 dias úteis</b> para concluir o cadastro do cliente em uma de nossas usinas.',
+        'Abrimos a ouvidoria <b>30 dias antes</b> desse prazo, se ainda não tivermos a confirmação do cadastro. Ex.: contrato assinado em setembro → previsão até dezembro → ouvidoria em novembro.'
+      ],
+      quando:'<b>30 dias antes</b> do fim do prazo de 60 dias úteis, se o cadastro ainda não foi confirmado.',
+      campos:[F_NOME_CLI, F_END_CLI, F_INST_CLI, F_UC_CLI,
+        {k:'protocolo', label:'Protocolo por anexo Cemig da usina do cliente', ph:'Usado no campo de 1º nível', help:'“Protocolo por anexo Cemig” da usina à qual o cliente foi conectado.'},
+        {k:'protocolos', label:'Protocolos de cadastro citados no relato', ph:'Ex.: 123456, 234567, 345678', help:'Separe por vírgula. A página junta com “e” no final.'},
+        {k:'dataAss', label:'Data de assinatura do contrato', opt:true, tipo:'date', calc:'60uteis'},
+        F_PF],
+      reg:regCli,
+      protocolo1:v=>M(v.protocolo,'protocolo por anexo'),
+      anexos:v=>['Contrato do cliente com a Watt Wise','Cartão CNPJ da Watt Wise','“Protocolo por anexo Cemig”','Documento de identificação do cliente', ...(ANEXOS_PJ(v)?['Cartão CNPJ do cliente']:[])],
+      relato:v=>`Solicito esclarecimentos sobre o andamento do cadastro da minha unidade consumidora nº ${ucRelato(v)} na usina de geração distribuída vinculada à empresa Watt Wise, CNPJ ${fixos.cnpjww}.
+
+Fui informado(a) de que minha unidade já foi incluída na usina e que foram registradas as solicitações de cadastro por meio dos protocolos nº ${M(listaE(v.protocolos),'protocolos de cadastro')}. Entretanto, até o momento, o processo de conexão não foi concluído e ainda não comecei a receber os créditos de energia.
+
+Considerando o prazo de até 60 dias para conclusão do cadastro, solicito a verificação da situação atual da minha unidade, a identificação de possíveis pendências e uma previsão para a efetivação da conexão e o início da compensação de energia.
+
+Peço que sejam tomadas as providências necessárias para concluir o processo o mais breve possível, evitando novos atrasos no recebimento dos créditos de energia.`
+    },
+    {
+      num:8, id:'atraso-injecao', grupo:'Clientes',
+      titulo:'Clientes — atraso de injeção',
+      curto:'Cadastro feito, mas os créditos ainda não começaram',
+      motivoReg:'Atraso na injeção',
+      contato:'cliente',
+      objetivo:'Cobrar a regularização dos clientes já cadastrados em uma usina da Watt Wise que ainda não começaram a receber os créditos no prazo.',
+      explicacao:[
+        'Aprovado o cadastro (até 60 dias úteis após o contrato), os créditos devem começar no mês seguinte, conforme a data de leitura da unidade.',
+        'Quando o cadastro já foi feito mas a injeção não começa, abrimos a ouvidoria para saber o motivo e pedir a regularização.'
+      ],
+      quando:'Sempre que o prazo previsto para o início da injeção já passou e o cliente ainda não recebe os créditos.',
+      campos:[F_NOME_CLI, F_END_CLI, F_INST_CLI, F_UC_CLI,
+        {k:'protocolo', label:'Protocolo por anexo Cemig da usina do cliente', ph:'Usado no campo de 1º nível', help:'“Protocolo por anexo Cemig” da usina à qual o cliente foi conectado.'},
+        {k:'protocolos', label:'Protocolos de cadastro citados no relato', ph:'Ex.: 123456, 234567, 345678', help:'Separe por vírgula. A página junta com “e” no final.'},
+        F_PF],
+      reg:regCli,
+      protocolo1:v=>M(v.protocolo,'protocolo por anexo'),
+      anexos:v=>['Contrato do cliente com a Watt Wise','Cartão CNPJ da Watt Wise','“Protocolo por anexo Cemig”','Documento de identificação do cliente', ...(ANEXOS_PJ(v)?['Cartão CNPJ do cliente']:[])],
+      relato:v=>`Solicito esclarecimentos sobre o atraso no início da injeção de créditos de energia na minha unidade consumidora nº ${ucRelato(v)}, cadastrada na usina de geração distribuída vinculada à empresa Watt Wise, CNPJ ${fixos.cnpjww}.
+
+Minha unidade já foi incluída na usina, conforme solicitações registradas nos protocolos nº ${M(listaE(v.protocolos),'protocolos de cadastro')}. Entretanto, mesmo após a conclusão do prazo previsto para o cadastro e o início da compensação de energia, ainda não estou recebendo os créditos contratados.
+
+Diante disso, solicito a verificação do motivo pelo qual a injeção de energia ainda não foi iniciada, a identificação de possíveis pendências e a regularização do envio dos créditos para minha unidade consumidora.
+
+Peço que sejam tomadas as providências necessárias com a maior brevidade possível, bem como informado um prazo para o início efetivo da compensação de energia.`
+    }
+  ];
+  const motivoPadrao = t => `${t.motivoReg}, reclamação ${t.num}.`;
+  const tipoPorNum = n => TIPOS.find(t => t.num === +n);
+  const grupoDe = num => (+num <= 5 ? 'gerador' : 'cliente');
+
+  // ---------- estado do gerador ----------
+  let atual = store.get('ouv_tipo', TIPOS[0].id);
+  if(!TIPOS.find(t=>t.id===atual)) atual = TIPOS[0].id;
+  let valores = store.get('ouv_valores', {});
+  let checks = {};
+  const tipo = () => TIPOS.find(t=>t.id===atual);
+  const vals = () => (valores[atual] = valores[atual] || {pessoa:'PF'});
+  function salvarLocal(){ store.set('ouv_valores', valores); }
+
+  // ---------- navegação ----------
+  function renderNav(){
+    $('nav').innerHTML = ['Usinas','Clientes'].map(g => `
+      <div class="group">
+        <div class="group-title">${g}</div>
+        ${TIPOS.filter(t=>t.grupo===g).map(t=>{
+          const nome = t.titulo.replace(/^(Usinas|Clientes) — /,'');
+          return `<button class="navitem ${t.id===atual?'active':''}" data-id="${t.id}">
+            <span class="num">${t.num}</span>
+            <span><span class="n">Reclamação ${t.num} · ${esc(nome.charAt(0).toUpperCase()+nome.slice(1))}</span>
+            <span class="d">${esc(t.curto)}</span></span>
+          </button>`;}).join('')}
+      </div>`).join('');
+    $('nav').querySelectorAll('.navitem').forEach(b => b.onclick = () => {
+      atual = b.dataset.id; store.set('ouv_tipo', atual); renderGerador();
+      if(window.innerWidth < 780) $('tutorial').scrollIntoView({behavior:'smooth'});
+    });
+  }
+
+  function renderTutorial(){
+    const t = tipo();
+    $('tutorial').innerHTML = `
+      <div class="tags"><span class="tag dark">Reclamação ${t.num}</span><span class="tag">${t.grupo}</span></div>
+      <h2>${esc(t.titulo)}</h2>
+      <p style="margin-top:8px"><span class="label">Objetivo: </span>${t.objetivo}</p>
+      <div class="when"><span>🗓</span><div><b>Quando abrir:</b> ${t.quando}</div></div>
+      ${t.aviso ? `<div class="alert"><span>⚠️</span><div>${t.aviso}</div></div>` : ''}
+      <details class="more">
+        <summary>Ver explicação completa</summary>
+        ${t.explicacao.map(p=>`<p>${p.replace('{{loginCemig}}', esc(fixos.loginCemig || 'da Watt Wise'))}</p>`).join('')}
+        <p><span class="label">Contato no formulário:</span> ${t.contato==='wisecoop' ? 'dados da Wisecoop (nome da cooperativa).' : '<b>nome do cliente</b>, com e-mail e telefone da Wisecoop.'} Número do cliente: deixar em branco.</p>
+      </details>`;
+  }
+
+  function renderForm(){
+    const t = tipo(), v = vals();
+    $('form').innerHTML = t.campos.map(c => {
+      if(c.tipo === 'pfpj'){
+        return `<div class="field"><label>${c.label}</label>
+          <div class="seg" role="group">
+            <button type="button" data-pf="PF" class="${v.pessoa!=='PJ'?'on':''}">Pessoa física</button>
+            <button type="button" data-pf="PJ" class="${v.pessoa==='PJ'?'on':''}">Pessoa jurídica</button>
+          </div><div class="help">Muda a lista de anexos.</div></div>`;
+      }
+      const type = c.tipo === 'date' ? 'date' : c.tipo === 'month' ? 'month' : 'text';
+      return `<div class="field" id="fw_${c.k}">
+        <label for="f_${c.k}">${c.label}${c.opt?' <span class="opt">(opcional)</span>':''}</label>
+        <input id="f_${c.k}" data-k="${c.k}" ${c.nome?'data-nome="1"':''} type="${type}" placeholder="${esc(c.ph||'')}" value="${esc(v[c.k]||'')}">
+        ${c.help ? `<div class="help">${c.help}</div>` : ''}
+        ${c.calc ? `<div class="calc" id="calc_${c.k}" style="display:none"></div>` : ''}
+      </div>`;
+    }).join('');
+    $('form').querySelectorAll('input[data-k]').forEach(inp => {
+      inp.addEventListener('input', () => { vals()[inp.dataset.k] = inp.value; salvarLocal(); renderResult(); renderCalcs(); limparAviso(); });
+      if(inp.dataset.nome){
+        inp.addEventListener('blur', () => {
+          const n = nomeNormal(inp.value);
+          if(n !== inp.value){ inp.value = n; vals()[inp.dataset.k] = n; salvarLocal(); renderResult(); }
+        });
+      }
+    });
+    $('form').querySelectorAll('[data-pf]').forEach(b => b.onclick = () => {
+      vals().pessoa = b.dataset.pf; salvarLocal();
+      $('form').querySelectorAll('[data-pf]').forEach(x=>x.classList.toggle('on', x===b));
+      renderResult();
+    });
+    $('form').onsubmit = e => e.preventDefault();
+    renderCalcs();
+  }
+
+  function renderCalcs(){
+    const t = tipo(), v = vals();
+    t.campos.filter(c=>c.calc).forEach(c => {
+      const el = $('calc_'+c.k); if(!el) return;
+      if(!v[c.k]){ el.style.display='none'; return; }
+      const base = parseISO(v[c.k]);
+      el.style.display = 'block';
+      if(c.calc === '30dias'){
+        const lim = addDias(base, 30), pode = hoje() > lim;
+        el.className = 'calc ' + (pode ? 'ok' : 'wait');
+        el.textContent = pode ? `Prazo de 30 dias venceu em ${br(lim)}: já pode abrir a ouvidoria.` : `Prazo de 30 dias vence em ${br(lim)}. Aguarde até depois dessa data.`;
+      } else {
+        const fim = addDiasUteis(base, 60), abrir = addDias(fim, -30), pode = hoje() >= abrir;
+        el.className = 'calc ' + (pode ? 'ok' : 'wait');
+        el.textContent = `60 dias úteis terminam por volta de ${br(fim)} (sem contar feriados). Abrir a ouvidoria a partir de ${br(abrir)}` + (pode ? ' (já pode abrir).' : '.');
+      }
+    });
+  }
+
+  const limpa = s => s.replace(/⟦([^⟧]+)⟧/g, '[$1]');
+  const realca = s => esc(s).replace(/⟦([^⟧]+)⟧/g, '<span class="miss">[$1]</span>');
+
+  function saidas(){
+    const t = tipo(), v = vals();
+    return [
+      {k:'Nome', v: t.contato==='wisecoop' ? fixos.nome : M(nomeNormal(v.nomeCliente),'nome do cliente')},
+      {k:'E-mail', v: M(fixos.email,'e-mail (dados fixos)')},
+      {k:'Telefone', v: M(fixos.tel,'telefone (dados fixos)')},
+      {k:'Endereço', v: M(v.endereco, t.contato==='wisecoop' ? 'endereço da usina' : 'endereço do cliente')},
+      {k:'Nº de instalação', v: t.contato==='wisecoop' ? M(v.instalacao,'nº da usina') : M(v.instalacao,'instalação do cliente')},
+      {k:'Nº do cliente', v: '', blank:'Deixar em branco'},
+      {k:'Protocolo de 1º nível', v: t.protocolo1(v)},
+      {k:'Motivo do contato', v: fixos.motivo}
+    ];
+  }
+  function faltando(){
+    const t = tipo(), v = vals();
+    const txt = saidas().map(o=>o.v).join(' ') + t.relato(v);
+    return [...new Set([...txt.matchAll(/⟦([^⟧]+)⟧/g)].map(m=>m[1]))];
+  }
+
+  function renderResult(){
+    const t = tipo(), v = vals();
+    const outs = saidas(), rel = t.relato(v);
+    $('outputs').innerHTML = outs.map((o,i) => `
+      <div class="out">
+        <div class="k">${o.k}</div>
+        <div class="v ${o.blank?'blank':''}">${o.blank ? o.blank : realca(o.v)}</div>
+        ${o.blank ? '<span></span>' : `<button class="copy" data-i="${i}">Copiar</button>`}
+      </div>`).join('');
+    $('outputs').querySelectorAll('.copy').forEach(b => b.onclick = () => copiar(limpa(outs[+b.dataset.i].v), b));
+    $('relato').innerHTML = realca(rel);
+    const falta = faltando();
+    const pill = $('pill');
+    if(falta.length){ pill.className='pill miss'; pill.textContent = falta.length===1 ? 'Falta 1 dado' : `Faltam ${falta.length} dados`; }
+    else { pill.className='pill ok'; pill.textContent='✓ Pronto para enviar'; }
+
+    const lista = t.anexos(v);
+    const set = checks[atual] = checks[atual] || new Set();
+    $('anexos').innerHTML = lista.map((a,i)=>`
+      <li class="${set.has(a)?'checked':''}">
+        <input type="checkbox" id="ax${i}" ${set.has(a)?'checked':''} data-a="${esc(a)}">
+        <label for="ax${i}">${esc(a)}</label>
+      </li>`).join('');
+    $('anexos').querySelectorAll('input').forEach(cb => cb.onchange = () => {
+      cb.checked ? set.add(cb.dataset.a) : set.delete(cb.dataset.a);
+      cb.closest('li').classList.toggle('checked', cb.checked);
+      $('prog').textContent = `${lista.filter(a=>set.has(a)).length} de ${lista.length} separados`;
+    });
+    $('prog').textContent = `${lista.filter(a=>set.has(a)).length} de ${lista.length} separados`;
+    renderRegFoot();
+  }
+
+  function renderRegFoot(){
+    const t = tipo();
+    $('s_ns').value = T(vals().protocolo);
+    $('s_ns').placeholder = 'Preencha o protocolo de 1º nível';
+    $('regFoot').textContent = `Vai para Registro → ${grupoDe(t.num) === 'gerador' ? 'Geradores' : 'Clientes'} · Reclamação ${t.num}`;
+  }
+
+  function renderGerador(){ renderNav(); renderTutorial(); renderForm(); renderResult(); limparAviso(); }
+
+  // ---------- copiar ----------
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2000); }
+  function fallbackCopy(txt){
+    const ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select(); let ok=false; try{ ok=document.execCommand('copy'); }catch(e){} ta.remove(); return ok;
+  }
+  function copiar(txt, btn, msg){
+    const fim = ok => {
+      if(ok){ toast(msg || 'Copiado!'); if(btn && btn.classList.contains('copy')){ const o=btn.textContent; btn.classList.add('done'); btn.textContent='✓ Copiado'; setTimeout(()=>{btn.classList.remove('done'); btn.textContent=o;},1200);} }
+      else toast('Não consegui copiar. Selecione o texto e use Ctrl+C.');
+    };
+    try{
+      if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(txt).then(()=>fim(true)).catch(()=>fim(fallbackCopy(txt)));
+      } else fim(fallbackCopy(txt));
+    }catch(e){ fim(fallbackCopy(txt)); }
+  }
+  $('copyRelato').onclick = e => copiar(limpa(tipo().relato(vals())), e.currentTarget);
+  $('btnLimpar').onclick = () => { valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal(); renderForm(); renderResult(); toast('Campos limpos'); };
+
+  // ---------- dados fixos ----------
+  const FX = ['nome','email','tel','motivo','cnpjww','loginCemig'];
+  $('btnFixos').onclick = () => {
+    if(!token){ toast('Os dados fixos ficam disponíveis depois da configuração do registro.'); return; }
+    FX.forEach(k => $('fx_'+k).value = fixos[k] || ''); abrirModal('modalFixos');
+  };
+  $('fxSave').onclick = async () => {
+    const novo = {}; FX.forEach(k => novo[k] = $('fx_'+k).value.trim());
+    $('fxSave').disabled = true;
+    const ok = await gravar(() => salvarDadosFixos(novo));
+    $('fxSave').disabled = false;
+    if(ok){ fecharModais(); toast('Dados fixos salvos para toda a equipe'); }
+  };
+
+  function abrirModal(id){ $(id).classList.add('open'); }
+  function fecharModais(){ document.querySelectorAll('.modal-bg').forEach(m=>m.classList.remove('open')); }
+  document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if(e.target === m) fecharModais(); }));
+  document.querySelectorAll('[data-close]').forEach(b => b.onclick = fecharModais);
+  document.addEventListener('keydown', e => { if(e.key==='Escape') fecharModais(); });
+
+  // ================= REGISTRO (repositório privado no GitHub) =================
+  const CFG = Object.assign({
+    owner: 'danielamotaxp-code', repo: 'ouvidorias-cemig-dados', path: 'registros.json', branch: 'main', tokenCifrado: ''
+  }, window.OUV_CONFIG || {});
+  const API = `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${CFG.path}`;
+  let token = null, col = null, dbStatus = 'loading', registros = [], podeEscrever = true, shaAtual = null, pollTimer = null;
+  let grupoAtual = 'cliente', filtroRet = '', destacar = null;
+
+  const mesOptions = sel => MESES_CAP.map(m => `<option ${m===sel?'selected':''}>${m}</option>`).join('');
+  $('s_mes').innerHTML = mesOptions(mesAnterior());
+  $('s_data').value = isoHoje();
+  $('r_mes').innerHTML = mesOptions(mesAnterior());
+  $('fMes').innerHTML += MESES_CAP.map(m => `<option>${m}</option>`).join('');
+  $('s_resp').addEventListener('blur', () => { $('s_resp').value = nomeNormal($('s_resp').value); });
+  $('s_protocolo').addEventListener('input', limparAviso);
+  $('s_resp').addEventListener('input', limparAviso);
+
+  // ---- base64 UTF-8 ----
+  const b64enc = str => { const bytes = new TextEncoder().encode(str); let s = ''; for(let i=0;i<bytes.length;i+=0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i,i+0x8000)); return btoa(s); };
+  const b64dec = b64 => { const s = atob(b64.replace(/\s/g,'')); const u = new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i] = s.charCodeAt(i); return new TextDecoder().decode(u); };
+
+  async function ghFetch(url, opts = {}){
+    const r = await fetch(url, Object.assign({}, opts, {
+      cache: 'no-store',
+      headers: Object.assign({'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28'}, opts.headers || {})
+    }));
+    return r;
+  }
+  async function carregarArquivo(){
+    const r = await ghFetch(`${API}?ref=${CFG.branch}&t=${Date.now()}`);
+    if(r.status === 404) return {lista: [], sha: null};
+    if(!r.ok) throw {status: r.status};
+    const j = await r.json();
+    let texto = j.content ? b64dec(j.content) : '';
+    if(!texto && j.size > 0){ // arquivos > 1 MB vêm sem conteúdo: busca o bruto
+      const r2 = await ghFetch(`${API}?ref=${CFG.branch}`, {headers: {'Accept': 'application/vnd.github.raw+json'}});
+      if(!r2.ok) throw {status: r2.status};
+      texto = await r2.text();
+    }
+    let lista = [];
+    try{ const d = JSON.parse(texto || '{}'); lista = Array.isArray(d) ? d : (d.registros || []); }catch(e){ lista = []; }
+    return {lista, sha: j.sha};
+  }
+  // Lê, altera e grava. Se outra pessoa salvou no meio, lê de novo e repete.
+  async function alterar(fn, mensagem){
+    for(let tentativa = 0; tentativa < 4; tentativa++){
+      const {lista, sha} = await carregarArquivo();
+      const nova = fn(lista.slice());
+      const corpo = {message: mensagem, branch: CFG.branch, content: b64enc(JSON.stringify({registros: nova}, null, 1))};
+      if(sha) corpo.sha = sha;
+      const r = await ghFetch(API, {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(corpo)});
+      if(r.ok){ const j = await r.json(); shaAtual = j.content && j.content.sha; registros = nova; renderRegistro(); return true; }
+      if(r.status === 409 || r.status === 422){ await new Promise(res => setTimeout(res, 400 + Math.random()*900)); continue; }
+      throw {status: r.status};
+    }
+    throw {status: 409};
+  }
+  const novoId = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const quem = () => (sessao && sessao.nome) || 'equipe';
+  // Mesmo formato usado pelo resto da página (add / doc(id).update / set / delete)
+  col = {
+    async add(doc){ const id = novoId(); await alterar(l => l.concat([Object.assign({id}, doc)]), `Registro: Recl. ${doc.reclamacao} · ${doc.nome || 'sem nome'} (${quem()})`); return {id}; },
+    doc(id){ return {
+      update: patch => alterar(l => l.map(r => r.id === id ? Object.assign({}, r, patch) : r), `Atualiza registro ${id.slice(0,8)} (${quem()})`),
+      set: doc => alterar(l => l.map(r => r.id === id ? Object.assign({id}, doc) : r), `Edita registro ${id.slice(0,8)} (${quem()})`),
+      delete: () => alterar(l => l.filter(r => r.id !== id), `Exclui registro ${id.slice(0,8)} (${quem()})`)
+    }; }
+  };
+
+  // ---- dados fixos (e-mail, telefone, login): ficam no repositório privado, nunca no código público ----
+  const API_CFG = `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/dados-fixos.json`;
+  let shaFixos = null;
+  async function carregarDadosFixos(){
+    try{
+      const r = await ghFetch(`${API_CFG}?ref=${CFG.branch}&t=${Date.now()}`);
+      if(!r.ok) return;
+      const j = await r.json(); shaFixos = j.sha;
+      const d = JSON.parse(b64dec(j.content || '') || '{}');
+      fixos = Object.assign({}, FIXOS_PADRAO, d);
+      renderTutorial(); renderResult();
+    }catch(e){}
+  }
+  async function salvarDadosFixos(novo){
+    for(let i = 0; i < 3; i++){
+      const r0 = await ghFetch(`${API_CFG}?ref=${CFG.branch}&t=${Date.now()}`);
+      const sha = r0.ok ? (await r0.json()).sha : null;
+      const corpo = {message: `Atualiza dados fixos (${quem()})`, branch: CFG.branch, content: b64enc(JSON.stringify(novo, null, 1))};
+      if(sha) corpo.sha = sha;
+      const r = await ghFetch(API_CFG, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
+      if(r.ok){ fixos = Object.assign({}, FIXOS_PADRAO, novo); renderTutorial(); renderResult(); return true; }
+      if(r.status === 409 || r.status === 422) continue;
+      throw {status: r.status};
+    }
+    throw {status: 409};
+  }
+
+  async function atualizarLista(silencioso){
+    if(!token) return;
+    try{
+      const {lista, sha} = await carregarArquivo();
+      if(sha !== shaAtual || dbStatus !== 'ok'){ registros = lista; shaAtual = sha; }
+      dbStatus = 'ok';
+    }catch(e){
+      if(e && (e.status === 401 || e.status === 403)) dbStatus = 'semchave';
+      else if(!silencioso || dbStatus !== 'ok') dbStatus = 'error';
+    }
+    setBanner(); renderRegistro();
+  }
+
+  function setBanner(){
+    const b = $('regBanner');
+    if(!token) b.innerHTML = setupHtml();
+    else if(dbStatus === 'loading') b.innerHTML = `<div class="banner info">Carregando o registro…</div>`;
+    else if(dbStatus === 'semchave') b.innerHTML = `<div class="banner warn">A chave de acesso ao repositório de dados expirou ou foi revogada. Gere uma nova chave e refaça a configuração.</div>` + setupHtml();
+    else if(dbStatus === 'error') b.innerHTML = `<div class="banner warn">Não foi possível acessar o registro agora. Verifique a internet e recarregue a página.</div>`;
+    else b.innerHTML = '';
+    const pronto = !!token && dbStatus === 'ok';
+    podeEscrever = pronto;
+    $('btnRegistrar').disabled = !pronto;
+    $('btnPlanilha').hidden = !pronto;
+    ligarSetup();
+  }
+
+  // ---- configuração inicial (uma vez): guarda a chave do GitHub criptografada com a senha ----
+  function setupHtml(){
+    return `<div class="card" style="margin-bottom:16px">
+      <h3>Configuração inicial do registro</h3>
+      <p style="margin:0 0 12px;font-size:14px;color:#2f3833">Cole aqui a chave de acesso do GitHub (fine-grained token com permissão <b>Contents: Read and write</b> só no repositório <b>${esc(CFG.repo)}</b>). A página guarda a chave criptografada com a senha de acesso.</p>
+      <div class="field"><label for="stToken">Chave de acesso (token)</label><input id="stToken" type="password" placeholder="github_pat_…" autocomplete="off"></div>
+      <button class="btn primary" id="stGo" type="button">Testar e gerar configuração</button>
+      <div id="stOut" style="margin-top:12px"></div>
+    </div>`;
+  }
+  function ligarSetup(){
+    const go = $('stGo'); if(!go) return;
+    go.onclick = async () => {
+      const tk = $('stToken').value.trim();
+      if(!tk){ $('stToken').focus(); return; }
+      go.disabled = true; $('stOut').innerHTML = '<div class="banner info">Testando a chave…</div>';
+      try{
+        const r = await fetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}`, {headers: {'Authorization': 'Bearer ' + tk, 'Accept': 'application/vnd.github+json'}});
+        if(!r.ok) throw new Error('A chave não abriu o repositório ' + CFG.repo + ' (erro ' + r.status + ').');
+        const j = await r.json();
+        if(j.permissions && j.permissions.push === false) throw new Error('A chave abre o repositório, mas não tem permissão de escrita.');
+        const cifrado = await cifrar(tk, sessao.senha);
+        token = tk; try{ sessionStorage.setItem('ouv_tok', tk); }catch(e){}
+        try{ localStorage.setItem('ouv_cfg_local', cifrado); }catch(e){}
+        $('setupResult').innerHTML = `<div class="card" style="margin-bottom:16px"><div class="banner info"><b>Chave funcionando.</b> Copie o texto abaixo e envie para o Claude (ou cole no arquivo <code>config.js</code> do site) para liberar o registro para todo mundo.</div>
+          <textarea readonly rows="3" style="width:100%;font-family:monospace;font-size:12px;border:1px solid var(--line);border-radius:9px;padding:9px">${esc(cifrado)}</textarea>
+          <button class="btn" id="stCopy" type="button" style="margin-top:8px">Copiar texto</button></div>`;
+        $('stCopy').onclick = () => copiar(cifrado, null, 'Texto de configuração copiado');
+        dbStatus = 'loading'; carregarDadosFixos(); atualizarLista(); iniciarPolling();
+      }catch(e){
+        $('stOut').innerHTML = `<div class="banner warn">${esc(e.message || 'Não foi possível testar a chave.')}</div>`;
+      }
+      go.disabled = false;
+    };
+  }
+
+  // ---- criptografia (PBKDF2 + AES-GCM) ----
+  const ITER = 600000;
+  const u8 = s => new TextEncoder().encode(s);
+  const toB64 = buf => { const b = new Uint8Array(buf); let s=''; b.forEach(c => s += String.fromCharCode(c)); return btoa(s); };
+  const fromB64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  async function chave(senha, salt){
+    const base = await crypto.subtle.importKey('raw', u8(senha), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({name:'PBKDF2', salt, iterations: ITER, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+  }
+  async function cifrar(texto, senha){
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12));
+    const c = await crypto.subtle.encrypt({name:'AES-GCM', iv}, await chave(senha, salt), u8(texto));
+    return btoa(JSON.stringify({s: toB64(salt), i: toB64(iv), c: toB64(c)}));
+  }
+  async function decifrar(blob, senha){
+    const o = JSON.parse(atob(blob));
+    const p = await crypto.subtle.decrypt({name:'AES-GCM', iv: fromB64(o.i)}, await chave(senha, fromB64(o.s)), fromB64(o.c));
+    return new TextDecoder().decode(p);
+  }
+
+  function iniciarPolling(){
+    clearInterval(pollTimer);
+    pollTimer = setInterval(() => { if(document.visibilityState === 'visible') atualizarLista(true); }, 60000);
+  }
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && token) atualizarLista(true); });
+
+  async function iniciar(){
+    try{ token = sessionStorage.getItem('ouv_tok') || null; }catch(e){ token = null; }
+    dbStatus = token ? 'loading' : 'setup';
+    setBanner(); renderRegistro();
+    if(token){ carregarDadosFixos(); await atualizarLista(); iniciarPolling(); }
+  }
+
+  function erroEscrita(e){
+    if(e && (e.status === 401 || e.status === 403 || e.status === 404)){ dbStatus = 'semchave'; setBanner(); return 'Sem permissão para salvar no registro.'; }
+    if(e && e.status === 409) return 'Muitas pessoas salvando ao mesmo tempo. Tente de novo.';
+    return 'Não foi possível salvar agora. Verifique a internet e tente de novo.';
+  }
+  async function gravar(fn){
+    try{ return await fn() || true; }
+    catch(e){ toast(erroEscrita(e)); return false; }
+  }
+
+  // ---------- registrar a partir do gerador ----------
+  let confirmarIncompleto = false;
+  function limparAviso(){
+    confirmarIncompleto = false;
+    $('regWarn').innerHTML = '';
+    $('btnRegistrar').textContent = 'Registrar ouvidoria →';
+    document.querySelectorAll('.field.err').forEach(f => f.classList.remove('err'));
+  }
+  $('btnRegistrar').onclick = async () => {
+    if(!col){ toast('O registro ainda não está disponível.'); return; }
+    const t = tipo(), v = vals(), r = t.reg(v);
+    // obrigatórios do registro
+    const obrig = [];
+    if(!r.nome){ obrig.push(t.contato === 'cliente' ? 'nome do cliente' : 'gerador'); const f = $(t.contato==='cliente' ? 'fw_nomeCliente' : 'fw_nomeUsina'); f && f.classList.add('err'); }
+    if(!$('s_protocolo').value.trim()){ obrig.push('nº do protocolo da ouvidoria'); $('fw_prot').classList.add('err'); }
+    if(!$('s_resp').value.trim()){ obrig.push('responsável'); $('fw_resp').classList.add('err'); }
+    if(obrig.length){
+      $('regWarn').innerHTML = `<div class="regwarn">Para registrar, preencha: <b>${esc(obrig.join(', '))}</b>.</div>`;
+      return;
+    }
+    const falta = faltando();
+    if(falta.length && !confirmarIncompleto){
+      confirmarIncompleto = true;
+      $('regWarn').innerHTML = `<div class="regwarn">A ouvidoria ainda tem ${falta.length===1?'1 dado':falta.length+' dados'} em branco (${esc(falta.join(', '))}). Clique de novo para registrar mesmo assim.</div>`;
+      $('btnRegistrar').textContent = 'Registrar mesmo assim →';
+      return;
+    }
+    const resp = nomeNormal($('s_resp').value); store.set('ouv_resp', resp);
+    const doc = {
+      grupo: grupoDe(t.num),
+      mes: $('s_mes').value, responsavel: resp,
+      nome: nomeNormal(r.nome), instalacao: r.instalacao, uc: r.uc,
+      protocolo: $('s_protocolo').value.trim(), ns: T(v.protocolo),
+      dataAbertura: $('s_data').value || isoHoje(),
+      reclamacao: t.num, motivo: motivoPadrao(t),
+      retorno: $('s_ret').checked, obs: '', criadoEm: new Date().toISOString()
+    };
+    $('btnRegistrar').disabled = true;
+    const ref = await gravar(() => col.add(doc));
+    $('btnRegistrar').disabled = false;
+    if(!ref) return;
+    // limpa para a próxima ouvidoria
+    valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal();
+    $('s_protocolo').value = ''; $('s_ret').checked = false; $('s_data').value = isoHoje();
+    renderForm(); renderResult(); limparAviso();
+    // vai para o registro
+    destacar = ref && ref.id ? ref.id : null;
+    grupoAtual = doc.grupo; filtroRet = ''; $('fBusca').value = ''; $('fMes').value = '';
+    irPara('registro');
+    toast('Ouvidoria registrada ✓');
+  };
+
+  // ---------- lista do registro ----------
+  $('fBusca').addEventListener('input', renderRegistro);
+  $('fMes').addEventListener('change', renderRegistro);
+  $('fRet').querySelectorAll('.chip').forEach(c => c.onclick = () => { filtroRet = c.dataset.ret; renderRegistro(); });
+  document.querySelectorAll('[data-grupo]').forEach(b => b.onclick = () => { grupoAtual = b.dataset.grupo; renderRegistro(); });
+
+  const grupoReg = r => r.grupo || grupoDe(r.reclamacao);
+  const ordena = (a,b) => (b.dataAbertura||'').localeCompare(a.dataAbertura||'') || (b.criadoEm||'').localeCompare(a.criadoEm||'');
+
+  function filtrados(){
+    const q = $('fBusca').value.trim().toLowerCase(), fm = $('fMes').value;
+    return registros.filter(r => {
+      if(grupoReg(r) !== grupoAtual) return false;
+      if(fm && r.mes !== fm) return false;
+      if(filtroRet === 'sim' && !r.retorno) return false;
+      if(filtroRet === 'nao' && r.retorno) return false;
+      if(q){ const hay = [r.nome,r.instalacao,r.uc,r.protocolo,r.ns,r.motivo,r.responsavel,r.obs].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+      return true;
+    }).sort(ordena);
+  }
+
+  const ICON_EDIT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+  const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
+
+  function renderRegistro(){
+    const nCli = registros.filter(r => grupoReg(r)==='cliente').length;
+    $('cntCli').textContent = nCli; $('cntGer').textContent = registros.length - nCli;
+    document.querySelectorAll('[data-grupo]').forEach(b => b.classList.toggle('on', b.dataset.grupo === grupoAtual));
+    $('fRet').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.ret === filtroRet));
+
+    const lista = filtrados();
+    const ger = grupoAtual === 'gerador';
+    const pode = podeEscrever && dbStatus === 'ok';
+    const head = `<div class="lrow head"><div>Abertura</div><div>Reclamação</div><div>${ger?'Gerador':'Cliente'}</div><div>Protocolo</div><div>Responsável</div><div>Retorno</div><div></div></div>`;
+
+    let corpo = lista.map(r => `
+      <div class="lrow ${r.id===destacar?'flash':''}" data-id="${esc(r.id)}">
+        <div class="c-date date">${esc(fmtData(r.dataAbertura))}<small>${esc(r.mes||'')}</small></div>
+        <div class="c-recl"><span class="rchip" title="${esc(r.motivo||'')}">Recl. ${esc(r.reclamacao)}</span></div>
+        <div class="c-who"><div class="who">${esc(r.nome) || '<span style="color:var(--soft)">Sem nome</span>'}</div>
+          <div class="sub2">${[r.instalacao ? 'Inst. '+esc(r.instalacao) : '', r.uc ? 'UC '+esc(r.uc) : ''].filter(Boolean).join(' · ')}</div>
+          ${r.obs ? `<div class="sub2">📝 ${esc(r.obs)}</div>` : ''}</div>
+        <div class="c-prot"><div><div class="prot">${r.protocolo ? `${esc(r.protocolo)} <button class="iconbtn" data-copy="${esc(r.protocolo)}" title="Copiar protocolo">${ICON_COPY}</button>` : '<span class="none">—</span>'}</div>
+          ${r.ns ? `<div class="sub2">NS ${esc(r.ns)}</div>` : ''}</div></div>
+        <div class="c-resp resp">${esc(r.responsavel)}</div>
+        <div class="c-ret"><button class="ret ${r.retorno?'yes':'no'}" data-ret="${esc(r.id)}" ${pode?'':'disabled'} title="${pode?'Clique para alterar':''}"><span class="dot"></span>${r.retorno?'Respondido':'Aguardando'}</button></div>
+        <div class="c-edit"><button class="iconbtn" data-edit="${esc(r.id)}" title="Editar" ${pode?'':'disabled'}>${ICON_EDIT}</button></div>
+      </div>`).join('');
+
+    if(!lista.length){
+      if(dbStatus === 'loading') corpo = `<div class="empty">Carregando…</div>`;
+      else if(dbStatus !== 'ok' && dbStatus !== 'slow') corpo = `<div class="empty">—</div>`;
+      else if(!registros.some(r => grupoReg(r) === grupoAtual)) corpo = `<div class="empty"><b>Nenhum registro de ${ger?'gerador':'cliente'} ainda</b>As ouvidorias aparecem aqui quando você clica em “Registrar ouvidoria” na aba Gerar.</div>`;
+      else corpo = `<div class="empty"><b>Nada encontrado</b>Nenhum registro bate com a busca ou os filtros.</div>`;
+    }
+    $('list').innerHTML = (lista.length ? head : '') + corpo;
+    const totalGrupo = registros.filter(r => grupoReg(r) === grupoAtual).length;
+    $('countNote').textContent = lista.length && lista.length !== totalGrupo ? `Mostrando ${lista.length} de ${totalGrupo}` : '';
+
+    $('list').querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copiar(b.dataset.copy, null, 'Protocolo copiado'));
+    $('list').querySelectorAll('[data-ret]').forEach(b => b.onclick = async () => {
+      const r = registros.find(x => x.id === b.dataset.ret); if(!r) return;
+      b.disabled = true;
+      await gravar(() => col.doc(r.id).update({retorno: !r.retorno}));
+      b.disabled = false;
+    });
+    $('list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => abrirRegistro(b.dataset.edit));
+    if(destacar){ const el = $('list').querySelector('.lrow.flash'); if(el){ setTimeout(()=>el.scrollIntoView({block:'nearest', behavior:'smooth'}), 50); } setTimeout(()=>{ destacar = null; }, 2300); }
+  }
+
+  // ---------- editar registro ----------
+  let editId = null;
+  function abrirRegistro(id){
+    const r = registros.find(x=>x.id===id); if(!r) return;
+    editId = id;
+    $('delConfirm').innerHTML = '';
+    const ger = grupoReg(r) === 'gerador';
+    $('rSub').textContent = ger ? 'Registro de gerador' : 'Registro de cliente';
+    $('r_nome_l').textContent = ger ? 'Gerador' : 'Nome do cliente';
+    const tiposGrupo = TIPOS.filter(t => grupoDe(t.num) === grupoReg(r));
+    $('r_recl').innerHTML = tiposGrupo.map(t => `<option value="${t.num}">Reclamação ${t.num} — ${esc(t.motivoReg)}</option>`).join('');
+    $('r_mes').value = r.mes || mesAnterior();
+    $('r_data').value = r.dataAbertura || '';
+    $('r_resp').value = r.responsavel || '';
+    $('r_nome').value = r.nome || '';
+    $('r_inst').value = r.instalacao || '';
+    $('r_uc').value = r.uc || '';
+    $('r_prot').value = r.protocolo || '';
+    $('r_ns').value = r.ns || '';
+    $('r_recl').value = String(r.reclamacao || tiposGrupo[0].num);
+    $('r_motivo').value = r.motivo || '';
+    $('r_ret').checked = !!r.retorno;
+    $('r_obs').value = r.obs || '';
+    abrirModal('modalReg');
+  }
+  ['r_nome','r_resp'].forEach(id => $(id).addEventListener('blur', () => { $(id).value = nomeNormal($(id).value); }));
+  $('r_recl').addEventListener('change', () => {
+    const t = tipoPorNum($('r_recl').value), cur = $('r_motivo').value.trim();
+    if(!cur || TIPOS.some(x => motivoPadrao(x) === cur)) $('r_motivo').value = motivoPadrao(t);
+  });
+  $('rSave').onclick = async () => {
+    if(!col || !editId) return;
+    const prev = registros.find(x=>x.id===editId) || {};
+    const num = +$('r_recl').value;
+    const doc = {
+      grupo: grupoDe(num),
+      mes: $('r_mes').value, responsavel: nomeNormal($('r_resp').value),
+      nome: nomeNormal($('r_nome').value), instalacao: $('r_inst').value.trim(), uc: $('r_uc').value.trim(),
+      protocolo: $('r_prot').value.trim(), ns: $('r_ns').value.trim(),
+      dataAbertura: $('r_data').value, reclamacao: num,
+      motivo: $('r_motivo').value.trim(), retorno: $('r_ret').checked, obs: $('r_obs').value.trim(),
+      criadoEm: prev.criadoEm || new Date().toISOString()
+    };
+    $('rSave').disabled = true;
+    const ok = await gravar(() => col.doc(editId).set(doc));
+    $('rSave').disabled = false;
+    if(ok){ fecharModais(); toast('Registro atualizado'); }
+  };
+  $('rDel').onclick = () => {
+    $('delConfirm').innerHTML = `<div class="confirm-del"><span>Excluir este registro? Não dá para desfazer.</span><span style="display:flex;gap:6px"><button class="btn" id="delNo" type="button">Não</button><button class="btn danger" id="delYes" type="button">Sim, excluir</button></span></div>`;
+    $('delNo').onclick = () => $('delConfirm').innerHTML = '';
+    $('delYes').onclick = async () => {
+      const ok = await gravar(() => col.doc(editId).delete());
+      if(ok){ fecharModais(); toast('Registro excluído'); }
+    };
+  };
+
+  // ================= GERAR PLANILHA (.xlsx) =================
+  // Monta um .xlsx simples (abas "Cliente" e "Gerador") sem bibliotecas externas.
+  const CRC = (() => { const t = new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n]=c>>>0; } return t; })();
+  const crc32 = b => { let c = 0xFFFFFFFF; for(let i=0;i<b.length;i++) c = CRC[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  function zip(files){
+    const enc = new TextEncoder(), partes = [], central = [];
+    let off = 0;
+    const d = new Date();
+    const dosT = (d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+    const dosD = ((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+    for(const f of files){
+      const nome = enc.encode(f.name), dados = enc.encode(f.data), crc = crc32(dados);
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true);
+      h.setUint16(10,dosT,true); h.setUint16(12,dosD,true); h.setUint32(14,crc,true);
+      h.setUint32(18,dados.length,true); h.setUint32(22,dados.length,true); h.setUint16(26,nome.length,true); h.setUint16(28,0,true);
+      partes.push(new Uint8Array(h.buffer), nome, dados);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0,0x02014b50,true); c.setUint16(4,20,true); c.setUint16(6,20,true); c.setUint16(8,0x0800,true); c.setUint16(10,0,true);
+      c.setUint16(12,dosT,true); c.setUint16(14,dosD,true); c.setUint32(16,crc,true);
+      c.setUint32(20,dados.length,true); c.setUint32(24,dados.length,true); c.setUint16(28,nome.length,true);
+      c.setUint16(30,0,true); c.setUint16(32,0,true); c.setUint16(34,0,true); c.setUint16(36,0,true); c.setUint32(38,0,true); c.setUint32(42,off,true);
+      central.push(new Uint8Array(c.buffer), nome);
+      off += 30 + nome.length + dados.length;
+    }
+    const cdSize = central.reduce((s,p)=>s+p.length,0);
+    const e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0,0x06054b50,true); e.setUint16(8,files.length,true); e.setUint16(10,files.length,true);
+    e.setUint32(12,cdSize,true); e.setUint32(16,off,true);
+    return new Blob([...partes, ...central, new Uint8Array(e.buffer)]);
+  }
+  const xe = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');
+  const colL = i => String.fromCharCode(65 + i);
+  function sheetXml(cab, linhas, larguras){
+    const cel = (v, r, c, estilo) => {
+      const ref = colL(c) + r;
+      if(typeof v === 'boolean') return `<c r="${ref}" t="b"${estilo?` s="${estilo}"`:''}><v>${v?1:0}</v></c>`;
+      return `<c r="${ref}" t="inlineStr"${estilo?` s="${estilo}"`:''}><is><t xml:space="preserve">${xe(v)}</t></is></c>`;
+    };
+    const rows = [`<row r="1">${cab.map((h,i)=>cel(h,1,i,1)).join('')}</row>`]
+      .concat(linhas.map((l,ri) => `<row r="${ri+2}">${l.map((v,ci)=>cel(v,ri+2,ci,0)).join('')}</row>`));
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>${larguras.map((w,i)=>`<col min="${i+1}" max="${i+1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.join('')}</sheetData></worksheet>`;
+  }
+  function gerarXlsx(abas){
+    const files = [
+      {name:'[Content_Types].xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${abas.map((a,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`},
+      {name:'_rels/.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+      {name:'xl/workbook.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${abas.map((a,i)=>`<sheet name="${xe(a.nome)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`},
+      {name:'xl/_rels/workbook.xml.rels', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${abas.map((a,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${abas.length+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+      {name:'xl/styles.xml', data:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FF0F7A55"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`}
+    ];
+    abas.forEach((a,i) => files.push({name:`xl/worksheets/sheet${i+1}.xml`, data: sheetXml(a.cab, a.linhas, a.larguras)}));
+    return zip(files);
+  }
+  function montarAbas(){
+    const linha = r => [r.mes||'', r.responsavel||'', r.nome||'', r.instalacao||'', r.uc||'', r.protocolo||'', r.ns||'', fmtData(r.dataAbertura), r.motivo||'', !!r.retorno, r.obs||''];
+    const asc = (a,b) => -ordena(a,b);
+    const larg = [12,16,38,14,22,14,16,14,44,10,30];
+    return [
+      {nome:'Cliente', cab:['Mês','Responsável','Nome Cliente','Instalação','UC','Nº Protocolo','Nota de Serviço','Data Abertura','Motivo','Retorno','Observações'],
+        linhas: registros.filter(r=>grupoReg(r)==='cliente').sort(asc).map(linha), larguras:larg},
+      {nome:'Gerador', cab:['Mês','Responsável','Gerador','Instalação','UC','Nº Protocolo','Nota de Serviço','Data Abertura','Motivo','Retorno','Observações'],
+        linhas: registros.filter(r=>grupoReg(r)==='gerador').sort(asc).map(linha), larguras:larg}
+    ];
+  }
+  $('btnPlanilha').onclick = () => {
+    if(!registros.length){ toast('Ainda não há registros para gerar a planilha.'); return; }
+    const d = new Date();
+    const nome = `Controle Ouvidorias Cemig ${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}.xlsx`;
+    const blob = new Blob([gerarXlsx(montarAbas())], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = nome; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    window.__ultimaPlanilha = blob;
+    toast('Planilha gerada ✓');
+  };
+
+  // ================= LOGIN =================
+  const USUARIOS = ['Daniela','Paula','Pedro','Victor','Ytala'];
+  const SENHA_HASH = 'a76b7f25b6ba5ec51bd9fa42f4143b63c2495996e783baa4d9f8459d314f6ad2';
+  let sessao = null;
+  const sha256 = async t => [...new Uint8Array(await crypto.subtle.digest('SHA-256', u8(t)))].map(b => b.toString(16).padStart(2,'0')).join('');
+  $('lgUser').innerHTML = '<option value="">Selecione…</option>' + USUARIOS.map(u => `<option>${u}</option>`).join('');
+  $('lgUser').value = store.get('ouv_ultimo_user', '');
+  function entrouComo(nome){
+    $('login').hidden = true;
+    $('userChip').textContent = nome;
+    $('userBox').hidden = false;
+    $('s_resp').value = nome;
+    iniciar();
+  }
+  $('lgForm').onsubmit = async e => {
+    e.preventDefault();
+    const nome = $('lgUser').value, senha = $('lgPass').value;
+    $('lgErr').textContent = '';
+    if(!nome){ $('lgErr').textContent = 'Escolha seu nome.'; return; }
+    if(!senha){ $('lgErr').textContent = 'Digite a senha.'; return; }
+    $('lgBtn').disabled = true; $('lgBtn').textContent = 'Entrando…';
+    let ok = false, tk = null;
+    const blob = CFG.tokenCifrado || (() => { try{ return localStorage.getItem('ouv_cfg_local') || ''; }catch(e){ return ''; } })();
+    if(blob){
+      try{ tk = await decifrar(blob, senha); ok = true; }catch(err){ ok = false; }
+    }
+    if(!ok) ok = (await sha256(senha)) === SENHA_HASH;
+    $('lgBtn').disabled = false; $('lgBtn').textContent = 'Entrar';
+    if(!ok){ $('lgErr').textContent = 'Senha incorreta.'; $('lgPass').select(); return; }
+    sessao = {nome, senha};
+    try{ sessionStorage.setItem('ouv_sessao', JSON.stringify(sessao)); if(tk) sessionStorage.setItem('ouv_tok', tk); }catch(err){}
+    store.set('ouv_ultimo_user', nome);
+    $('lgPass').value = '';
+    entrouComo(nome);
+  };
+  $('btnSair').onclick = () => {
+    try{ sessionStorage.removeItem('ouv_sessao'); sessionStorage.removeItem('ouv_tok'); }catch(e){}
+    location.hash = ''; location.reload();
+  };
+  function iniciarLogin(){
+    try{ sessao = JSON.parse(sessionStorage.getItem('ouv_sessao') || 'null'); }catch(e){ sessao = null; }
+    if(sessao && sessao.nome){ entrouComo(sessao.nome); }
+    else { $('login').hidden = false; setTimeout(() => ($('lgUser').value ? $('lgPass') : $('lgUser')).focus(), 50); }
+  }
+
+  // ---------- abas ----------
+  function mostrar(view){
+    const v = view === 'registro' ? 'registro' : 'gerar';
+    $('viewGerar').hidden = v !== 'gerar';
+    $('viewRegistro').hidden = v !== 'registro';
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
+    if(v === 'registro') renderRegistro();
+    window.scrollTo(0,0);
+  }
+  function irPara(v){ try{ if(location.hash.slice(1) !== v) location.hash = v; }catch(e){} mostrar(v); }
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => irPara(t.dataset.view));
+  window.addEventListener('hashchange', () => mostrar(location.hash.slice(1)));
+
+  mostrar(location.hash.slice(1));
+  renderGerador();
+  iniciarLogin();
+})();
+</script>
+</body>
+</html>
