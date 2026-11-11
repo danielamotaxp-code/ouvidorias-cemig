@@ -153,6 +153,21 @@
   @keyframes flash{0%,30%{background:var(--accent-soft)}100%{background:transparent}}
   .date{font-size:13.5px;font-variant-numeric:tabular-nums}
   .date small{display:block;color:var(--soft);font-size:12px}
+  .stseg button .c.warn{background:#fde7cf;color:#8a4b00}
+  .resseg{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 14px}
+  .resseg button{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:10px 8px;font:inherit;font-weight:600;font-size:13.5px;cursor:pointer;color:var(--ink-2,#3b4842)}
+  .resseg button.on[data-r=ok]{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-ink)}
+  .resseg button.on[data-r=erro]{border-color:#e8a25a;background:#fff4e6;color:#8a4b00}
+  .pendinfo{background:#fff4e6;border:1px solid #f2c895;color:#6b3d00;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px}
+  .pendinfo button{background:none;border:0;padding:0;font:inherit;font-weight:600;color:#8a4b00;text-decoration:underline;cursor:pointer}
+  .ret.pend{background:#fff4e6;border-color:#f2c895;color:#8a4b00;cursor:default}
+  .prob{font-size:12.5px;color:#8a4b00}
+  .dados-out{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:6px 10px;align-items:center;font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)}
+  .dados-out .k{color:var(--muted);font-size:12.5px;font-weight:600}
+  .dados-out .v{word-break:break-word}
+  .dados-relato{white-space:pre-wrap;background:#f7f8f6;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13.5px;max-height:260px;overflow:auto}
+  .dados-hist{font-size:13px;color:var(--muted);margin:0;padding-left:18px}
+  .modal h4{margin:16px 0 6px;font-size:14px}
   .rchip{display:inline-block;font-weight:700;font-size:12px;background:#eef1ed;color:#3b4842;padding:3px 8px;border-radius:6px;white-space:nowrap}
   .who{font-weight:600;font-size:14px;line-height:1.35;word-break:break-word}
   .sub2{font-size:12.5px;color:var(--soft);font-variant-numeric:tabular-nums;margin-top:1px;word-break:break-word}
@@ -289,17 +304,27 @@
     </section>
     <section class="card regcard">
       <h3>Registro desta ouvidoria</h3>
-      <p class="sub">Preencha depois de enviar no site da Cemig.</p>
-      <div class="row2">
+      <p class="sub">Preencha depois de tentar enviar no site da Cemig.</p>
+      <div id="pendInfo"></div>
+      <div class="resseg" role="group" aria-label="Resultado no site da Cemig" id="s_result">
+        <button type="button" data-r="ok" class="on">✓ Enviada na Cemig</button>
+        <button type="button" data-r="erro">⚠ Deu problema no site</button>
+      </div>
+      <div id="blocoErro" hidden>
+        <div class="field"><label for="s_prob">O que aconteceu no site da Cemig</label>
+          <select id="s_prob"><option value="">Escolha…</option><option>Site fora do ar</option><option>Erro ao anexar documentos</option><option>Erro ao enviar o formulário</option><option>Captcha não funcionou</option><option>Enviou, mas não gerou protocolo</option><option>Outro</option></select></div>
+        <div class="field"><label for="s_pobs">Observação <span class="opt">(opcional)</span></label><textarea id="s_pobs" rows="2" placeholder="Ex.: travou no anexo da procuração"></textarea></div>
+      </div>
+      <div class="row2" id="blocoOk">
         <div class="field" id="fw_prot"><label for="s_protocolo">Nº do protocolo da ouvidoria</label><input id="s_protocolo" placeholder="Gerado pela Cemig ao enviar"></div>
         <div class="field"><label for="s_ns">Nota de serviço</label><input id="s_ns" readonly tabindex="-1" style="background:#f4f6f3;color:var(--muted)"><div class="help">Preenchida com o protocolo de 1º nível.</div></div>
       </div>
       <div class="row3">
         <div class="field" id="fw_resp"><label for="s_resp">Responsável</label><input id="s_resp" placeholder="Quem abriu"></div>
         <div class="field"><label for="s_mes">Mês</label><select id="s_mes"></select></div>
-        <div class="field"><label for="s_data">Data de abertura</label><input id="s_data" type="date"></div>
+        <div class="field"><label for="s_data" id="s_data_l">Data de abertura</label><input id="s_data" type="date"></div>
       </div>
-      <div class="field"><label class="chk"><input type="checkbox" id="s_ret"> Já teve retorno da Cemig</label></div>
+      <div class="field" id="blocoRet"><label class="chk"><input type="checkbox" id="s_ret"> Já teve retorno da Cemig</label></div>
       <div id="regWarn"></div>
       <button class="btn primary big" id="btnRegistrar">Registrar ouvidoria →</button>
       <div class="regfoot" id="regFoot"></div>
@@ -315,6 +340,11 @@
       <div class="seg" role="group" aria-label="Tipo de registro">
         <button type="button" data-grupo="cliente" class="on">Clientes <span class="c" id="cntCli">0</span></button>
         <button type="button" data-grupo="gerador">Geradores <span class="c" id="cntGer">0</span></button>
+      </div>
+      <div class="seg stseg" role="group" aria-label="Situação">
+        <button type="button" data-st="todos" class="on">Todos os cadastros <span class="c" id="cntTodos">0</span></button>
+        <button type="button" data-st="enviada">Enviadas <span class="c" id="cntEnv">0</span></button>
+        <button type="button" data-st="pendente">Não enviadas <span class="c warn" id="cntPend">0</span></button>
       </div>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -364,6 +394,20 @@
     <div class="actions">
       <span></span>
       <div class="right"><button class="btn" data-close type="button">Cancelar</button><button class="btn primary" id="fxSave" type="button">Salvar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== MODAL DADOS PARA A CEMIG =============== -->
+<div class="modal-bg" id="modalDados">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dTitle" style="max-width:760px">
+    <h2 id="dTitle">Dados para o site da Cemig</h2>
+    <p class="sub" id="dSub"></p>
+    <div id="dCorpo"></div>
+    <div id="dDel"></div>
+    <div class="actions">
+      <button class="btn danger" id="dExcluir" type="button" hidden>Excluir</button>
+      <div class="right"><button class="btn" data-close type="button">Fechar</button><button class="btn primary" id="dReenviar" type="button" hidden>Tentar enviar de novo →</button></div>
     </div>
   </div>
 </div>
@@ -1153,7 +1197,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }, window.OUV_CONFIG || {});
   const API = `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${CFG.path}`;
   let token = null, col = null, dbStatus = 'loading', registros = [], podeEscrever = true, shaAtual = null, pollTimer = null;
-  let grupoAtual = 'cliente', filtroRet = '', destacar = null;
+  let grupoAtual = 'cliente', filtroRet = '', destacar = null, statusAtual = 'todos';
 
   const mesOptions = sel => MESES_CAP.map(m => `<option ${m===sel?'selected':''}>${m}</option>`).join('');
   $('s_mes').innerHTML = mesOptions(mesAnterior());
@@ -1308,7 +1352,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     try{ token = sessionStorage.getItem('ouv_tok') || null; }catch(e){ token = null; }
     dbStatus = token ? 'loading' : 'setup';
     setBanner(); renderRegistro();
-    if(token){ carregarDadosFixos(); carregarTipos(); await atualizarLista(); iniciarPolling(); }
+    if(token){ carregarDadosFixos(); carregarTipos(); await atualizarLista(); iniciarPolling(); desenharResultado(); }
   }
 
   function erroEscrita(e){
@@ -1322,16 +1366,43 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
 
   // ---------- registrar a partir do gerador ----------
-  let confirmarIncompleto = false;
+  // Resultado no site da Cemig: "ok" (enviada, vai para o registro e a planilha) ou "erro" (fica em Não enviadas).
+  let confirmarIncompleto = false, resultado = 'ok', pendenteAtual = store.get('ouv_pend', null);
+  const statusReg = r => r.status === 'pendente' ? 'pendente' : 'enviada';
+  const enviados = () => registros.filter(r => statusReg(r) === 'enviada');
+  const textoBotao = () => resultado === 'erro' ? (pendenteAtual ? 'Salvar nova tentativa →' : 'Salvar em Não enviadas →') : (pendenteAtual ? 'Registrar como enviada →' : 'Registrar ouvidoria →');
+  function desenharResultado(){
+    $('s_result').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.r === resultado));
+    const erro = resultado === 'erro';
+    $('blocoErro').hidden = !erro; $('blocoOk').hidden = erro; $('blocoRet').hidden = erro;
+    $('s_data_l').textContent = erro ? 'Data da tentativa' : (pendenteAtual ? 'Data do envio' : 'Data de abertura');
+    const p = pendenteAtual && registros.find(r => r.id === pendenteAtual);
+    if(pendenteAtual && !p && dbStatus === 'ok'){ pendenteAtual = null; store.set('ouv_pend', null); }
+    $('pendInfo').innerHTML = p ? `<div class="pendinfo">Reenviando a ouvidoria de <b>${esc(p.nome || 'sem nome')}</b> (${(p.tentativas||[]).length} tentativa${(p.tentativas||[]).length===1?'':'s'} com problema). Se der certo, ela sai de <b>Não enviadas</b> e vai para <b>Enviadas</b>. <button type="button" id="pendCancelar">Não é essa</button></div>` : '';
+    if($('pendCancelar')) $('pendCancelar').onclick = () => { pendenteAtual = null; store.set('ouv_pend', null); desenharResultado(); limparAviso(); };
+    $('btnRegistrar').textContent = textoBotao();
+  }
+  $('s_result').querySelectorAll('button').forEach(b => b.onclick = () => { resultado = b.dataset.r; desenharResultado(); limparAviso(); });
+  // tudo o que é copiado para o site da Cemig, guardado junto com o cadastro (deu certo ou não)
+  function fotoEnvio(){
+    const t = tipo(), v = vals();
+    return {
+      tipoId: t.id, tipoTitulo: t.titulo,
+      campos: saidas().map(o => ({k: o.k, v: o.blank ? '' : limpa(o.v), blank: o.blank || ''})),
+      relato: limpa(t.relato(v)), anexos: t.anexos(v),
+      valores: JSON.parse(JSON.stringify(v)), salvoEm: new Date().toISOString()
+    };
+  }
   function limparAviso(){
     confirmarIncompleto = false;
     $('regWarn').innerHTML = '';
-    $('btnRegistrar').textContent = 'Registrar ouvidoria →';
+    $('btnRegistrar').textContent = textoBotao();
     document.querySelectorAll('.field.err').forEach(f => f.classList.remove('err'));
   }
   $('btnRegistrar').onclick = async () => {
     if(!col){ toast('O registro ainda não está disponível.'); return; }
     const t = tipo(), v = vals(), r = t.reg(v);
+    if(resultado === 'erro') return salvarNaoEnviada(t, v, r);
     // obrigatórios do registro
     const obrig = [];
     if(!r.nome){ obrig.push(t.contato === 'cliente' ? 'nome do cliente' : 'gerador'); const f = $(t.contato==='cliente' ? 'fw_nomeCliente' : 'fw_nomeUsina'); f && f.classList.add('err'); }
@@ -1356,12 +1427,19 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       protocolo: $('s_protocolo').value.trim(), ns: T(v.protocolo),
       dataAbertura: $('s_data').value || isoHoje(),
       reclamacao: t.num, motivo: motivoPadrao(t),
-      retorno: $('s_ret').checked, obs: '', criadoEm: new Date().toISOString()
+      retorno: $('s_ret').checked, obs: '', criadoEm: new Date().toISOString(),
+      status: 'enviada', envio: fotoEnvio()
     };
+    const pend = pendenteAtual && registros.find(x => x.id === pendenteAtual);
     $('btnRegistrar').disabled = true;
-    const ref = await gravar(() => col.add(doc));
+    let ref;
+    if(pend){ // a que estava em Não enviadas agora deu certo: vira enviada, guardando o histórico das tentativas
+      Object.assign(doc, {criadoEm: pend.criadoEm, primeiraTentativa: pend.primeiraTentativa, tentativas: pend.tentativas || [], obs: pend.obs || ''});
+      ref = await gravar(() => col.doc(pend.id).set(doc).then(() => ({id: pend.id})));
+    } else ref = await gravar(() => col.add(doc));
     $('btnRegistrar').disabled = false;
     if(!ref) return;
+    pendenteAtual = null; store.set('ouv_pend', null); statusAtual = 'enviada';
     // limpa para a próxima ouvidoria
     valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal();
     $('s_protocolo').value = ''; $('s_ret').checked = false; $('s_data').value = isoHoje();
@@ -1370,8 +1448,80 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     destacar = ref && ref.id ? ref.id : null;
     grupoAtual = doc.grupo; filtroRet = ''; $('fBusca').value = ''; $('fMes').value = '';
     irPara('registro');
-    toast('Ouvidoria registrada ✓');
+    toast(doc.tentativas && doc.tentativas.length ? 'Ouvidoria enviada ✓ Saiu de Não enviadas' : 'Ouvidoria registrada ✓');
+    agendarGoogle(); desenharResultado();
+  };
+
+  // deu problema no site da Cemig: guarda tudo para outra pessoa tentar de novo
+  async function salvarNaoEnviada(t, v, r){
+    const obrig = [];
+    if(!r.nome && !r.instalacao){ obrig.push(t.contato === 'cliente' ? 'nome do cliente ou instalação' : 'gerador ou instalação'); }
+    if(!$('s_prob').value){ obrig.push('o que aconteceu no site'); }
+    if(!$('s_resp').value.trim()){ obrig.push('responsável (quem tentou)'); $('fw_resp').classList.add('err'); }
+    if(obrig.length){ $('regWarn').innerHTML = `<div class="regwarn">Para salvar em Não enviadas, preencha: <b>${esc(obrig.join(', '))}</b>.</div>`; return; }
+    const resp = nomeNormal($('s_resp').value); store.set('ouv_resp', resp);
+    const quando = $('s_data').value || isoHoje();
+    const tent = {data: quando, quem: resp, problema: $('s_prob').value, obs: $('s_pobs').value.trim(), em: new Date().toISOString()};
+    const pend = pendenteAtual && registros.find(x => x.id === pendenteAtual);
+    const doc = Object.assign({}, pend || {}, {
+      status: 'pendente', grupo: grupoDe(t.num), mes: $('s_mes').value, responsavel: resp,
+      nome: nomeNormal(r.nome), instalacao: r.instalacao, uc: r.uc, ns: T(v.protocolo),
+      reclamacao: t.num, motivo: motivoPadrao(t), envio: fotoEnvio(),
+      primeiraTentativa: (pend && pend.primeiraTentativa) || quando, ultimaTentativa: quando,
+      tentativas: ((pend && pend.tentativas) || []).concat([tent]), criadoEm: (pend && pend.criadoEm) || new Date().toISOString()
+    });
+    delete doc.id;
+    $('btnRegistrar').disabled = true;
+    const ref = pend ? await gravar(() => col.doc(pend.id).set(doc).then(() => ({id: pend.id}))) : await gravar(() => col.add(doc));
+    $('btnRegistrar').disabled = false;
+    if(!ref) return;
+    valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal();
+    $('s_prob').value = ''; $('s_pobs').value = ''; $('s_data').value = isoHoje();
+    pendenteAtual = null; store.set('ouv_pend', null); resultado = 'ok';
+    renderForm(); renderResult(); limparAviso(); desenharResultado();
+    destacar = ref.id; grupoAtual = doc.grupo; statusAtual = 'pendente'; filtroRet = ''; $('fBusca').value = ''; $('fMes').value = '';
+    irPara('registro');
+    toast('Salva em Não enviadas. Outra pessoa pode tentar de novo.');
     agendarGoogle();
+  }
+
+  // ---------- dados para a Cemig (de qualquer cadastro, enviado ou não) ----------
+  let dadosId = null;
+  function abrirDados(id){
+    const r = registros.find(x => x.id === id); if(!r) return;
+    dadosId = id;
+    const e = r.envio, pend = statusReg(r) === 'pendente';
+    $('dTitle').textContent = pend ? 'Não enviada: dados para tentar de novo' : 'Dados enviados para a Cemig';
+    $('dSub').textContent = `${grupoReg(r) === 'gerador' ? 'Gerador' : 'Cliente'} · ${r.nome || 'sem nome'} · Reclamação ${r.reclamacao}${r.protocolo ? ' · Protocolo ' + r.protocolo : ''}`;
+    const hist = (r.tentativas || []).map(x => `<li>${esc(fmtData(x.data))} · ${esc(x.quem)}: <b>${esc(x.problema)}</b>${x.obs ? ' (' + esc(x.obs) + ')' : ''}</li>`).join('');
+    $('dCorpo').innerHTML = !e ? `<div class="banner info">Este cadastro é de antes de a plataforma guardar os dados enviados. Só os dados do registro estão disponíveis.</div>` :
+      `${e.campos.map((o,i) => `<div class="dados-out"><div class="k">${esc(o.k)}</div><div class="v">${o.blank ? `<span style="color:var(--soft)">${esc(o.blank)}</span>` : esc(o.v)}</div>${o.blank ? '<span></span>' : `<button class="copy" data-dc="${i}" type="button">Copiar</button>`}</div>`).join('')}
+       <h4 style="display:flex;justify-content:space-between;align-items:center">Relato do ocorrido <button class="copy" id="dCopRel" type="button">Copiar relato</button></h4>
+       <div class="dados-relato">${esc(e.relato)}</div>
+       <h4>Anexos</h4><ul class="dados-hist">${(e.anexos||[]).map(a => `<li>${esc(a)}</li>`).join('') || '<li>—</li>'}</ul>`
+      + (hist ? `<h4>Tentativas com problema no site</h4><ul class="dados-hist">${hist}</ul>` : '');
+    if(e){
+      $('dCorpo').querySelectorAll('[data-dc]').forEach(b => b.onclick = () => copiar(e.campos[+b.dataset.dc].v, b));
+      $('dCopRel').onclick = () => copiar(e.relato, $('dCopRel'), 'Relato copiado');
+    }
+    $('dReenviar').hidden = !pend || !e || !podeEscrever; $('dExcluir').hidden = !pend || !podeEscrever; $('dDel').innerHTML = '';
+    abrirModal('modalDados');
+  }
+  $('dReenviar').onclick = () => {
+    const r = registros.find(x => x.id === dadosId); if(!r || !r.envio) return;
+    const t = TIPOS.find(x => x.id === r.envio.tipoId) || tipoPorNum(r.reclamacao);
+    if(!t){ toast('O tipo dessa reclamação não existe mais.'); return; }
+    atual = t.id; store.set('ouv_tipo', atual);
+    valores[atual] = JSON.parse(JSON.stringify(r.envio.valores || {pessoa:'PF'})); checks[atual] = new Set(); salvarLocal();
+    pendenteAtual = r.id; store.set('ouv_pend', r.id); resultado = 'ok';
+    fecharModais(); irPara('gerar'); renderGerador(); desenharResultado();
+    toast('Dados carregados. Tente enviar no site da Cemig.');
+  };
+  $('dExcluir').onclick = () => {
+    const r = registros.find(x => x.id === dadosId); if(!r) return;
+    $('dDel').innerHTML = `<div class="confirm-del"><span>Excluir esta ouvidoria não enviada? Os dados guardados dela somem.</span><span style="display:flex;gap:6px"><button class="btn" id="dDelNao" type="button">Não</button><button class="btn danger" id="dDelSim" type="button">Sim, excluir</button></span></div>`;
+    $('dDelNao').onclick = () => $('dDel').innerHTML = '';
+    $('dDelSim').onclick = async () => { const ok = await gravar(() => col.doc(r.id).delete()); if(ok){ fecharModais(); toast('Excluída'); agendarGoogle(); } };
   };
 
   // ---------- lista do registro ----------
@@ -1379,6 +1529,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   $('fMes').addEventListener('change', renderRegistro);
   $('fRet').querySelectorAll('.chip').forEach(c => c.onclick = () => { filtroRet = c.dataset.ret; renderRegistro(); });
   document.querySelectorAll('[data-grupo]').forEach(b => b.onclick = () => { grupoAtual = b.dataset.grupo; renderRegistro(); });
+  document.querySelectorAll('[data-st]').forEach(b => b.onclick = () => { statusAtual = b.dataset.st; renderRegistro(); });
 
   const grupoReg = r => r.grupo || grupoDe(r.reclamacao);
   const ordena = (a,b) => (b.dataAbertura||'').localeCompare(a.dataAbertura||'') || (b.criadoEm||'').localeCompare(a.criadoEm||'');
@@ -1387,10 +1538,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const q = $('fBusca').value.trim().toLowerCase(), fm = $('fMes').value;
     return registros.filter(r => {
       if(grupoReg(r) !== grupoAtual) return false;
+      if(statusAtual !== 'todos' && statusReg(r) !== statusAtual) return false;
       if(fm && r.mes !== fm) return false;
-      if(filtroRet === 'sim' && !r.retorno) return false;
-      if(filtroRet === 'nao' && r.retorno) return false;
-      if(q){ const hay = [r.nome,r.instalacao,r.uc,r.protocolo,r.ns,r.motivo,r.responsavel,r.obs].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
+      if(filtroRet === 'sim' && (!r.retorno || statusReg(r) === 'pendente')) return false;
+      if(filtroRet === 'nao' && (r.retorno || statusReg(r) === 'pendente')) return false;
+      if(q){ const hay = [r.nome,r.instalacao,r.uc,r.protocolo,r.ns,r.motivo,r.responsavel,r.obs,(r.tentativas||[]).map(x=>x.problema+' '+x.obs+' '+x.quem).join(' ')].join(' ').toLowerCase(); if(!hay.includes(q)) return false; }
       return true;
     }).sort(ordena);
   }
@@ -1399,17 +1551,34 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 
   function renderRegistro(){
-    const nCli = registros.filter(r => grupoReg(r)==='cliente').length;
-    $('cntCli').textContent = nCli; $('cntGer').textContent = registros.length - nCli;
+    const noSt = r => statusAtual === 'todos' || statusReg(r) === statusAtual, doGr = r => grupoReg(r) === grupoAtual;
+    $('cntCli').textContent = registros.filter(r => grupoReg(r)==='cliente' && noSt(r)).length;
+    $('cntGer').textContent = registros.filter(r => grupoReg(r)==='gerador' && noSt(r)).length;
+    $('cntTodos').textContent = registros.filter(doGr).length;
+    $('cntEnv').textContent = registros.filter(r => doGr(r) && statusReg(r) === 'enviada').length;
+    $('cntPend').textContent = registros.filter(r => doGr(r) && statusReg(r) === 'pendente').length;
     document.querySelectorAll('[data-grupo]').forEach(b => b.classList.toggle('on', b.dataset.grupo === grupoAtual));
+    document.querySelectorAll('[data-st]').forEach(b => b.classList.toggle('on', b.dataset.st === statusAtual));
     $('fRet').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.ret === filtroRet));
 
     const lista = filtrados();
     const ger = grupoAtual === 'gerador';
     const pode = podeEscrever && dbStatus === 'ok';
-    const head = `<div class="lrow head"><div>Abertura</div><div>Reclamação</div><div>${ger?'Gerador':'Cliente'}</div><div>Protocolo</div><div>Responsável</div><div>Retorno</div><div></div></div>`;
+    const head = `<div class="lrow head"><div>${statusAtual==='pendente'?'Tentativa':'Data'}</div><div>Reclamação</div><div>${ger?'Gerador':'Cliente'}</div><div>${statusAtual==='pendente'?'Problema':'Protocolo'}</div><div>Responsável</div><div>${statusAtual==='pendente'?'Situação':'Retorno'}</div><div></div></div>`;
+    const ICON_DADOS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M8 12h8M8 16h5"/></svg>';
+    const linhaPend = r => { const u = (r.tentativas||[]).slice(-1)[0] || {}; return `
+      <div class="lrow ${r.id===destacar?'flash':''}" data-id="${esc(r.id)}">
+        <div class="c-date date">${esc(fmtData(r.ultimaTentativa))}<small>${esc(r.mes||'')}</small></div>
+        <div class="c-recl"><span class="rchip" title="${esc(r.motivo||'')}">Recl. ${esc(r.reclamacao)}</span></div>
+        <div class="c-who"><div class="who">${esc(r.nome) || '<span style="color:var(--soft)">Sem nome</span>'}</div>
+          <div class="sub2">${[r.instalacao ? 'Inst. '+esc(r.instalacao) : '', r.uc ? 'UC '+esc(r.uc) : ''].filter(Boolean).join(' · ')}</div></div>
+        <div class="c-prot"><div><div class="prob">⚠ ${esc(u.problema||'Problema no site')}</div>${u.obs ? `<div class="sub2">${esc(u.obs)}</div>` : ''}${(r.tentativas||[]).length > 1 ? `<div class="sub2">${r.tentativas.length} tentativas</div>` : ''}</div></div>
+        <div class="c-resp resp">${esc(u.quem || r.responsavel)}</div>
+        <div class="c-ret"><span class="ret pend"><span class="dot"></span>Não enviada</span></div>
+        <div class="c-edit"><button class="iconbtn" data-dados="${esc(r.id)}" title="Ver dados e tentar de novo">${ICON_DADOS}</button></div>
+      </div>`; };
 
-    let corpo = lista.map(r => `
+    let corpo = lista.map(r => statusReg(r) === 'pendente' ? linhaPend(r) : `
       <div class="lrow ${r.id===destacar?'flash':''}" data-id="${esc(r.id)}">
         <div class="c-date date">${esc(fmtData(r.dataAbertura))}<small>${esc(r.mes||'')}</small></div>
         <div class="c-recl"><span class="rchip" title="${esc(r.motivo||'')}">Recl. ${esc(r.reclamacao)}</span></div>
@@ -1420,17 +1589,18 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           ${r.ns ? `<div class="sub2">NS ${esc(r.ns)}</div>` : ''}</div></div>
         <div class="c-resp resp">${esc(r.responsavel)}</div>
         <div class="c-ret"><button class="ret ${r.retorno?'yes':'no'}" data-ret="${esc(r.id)}" ${pode?'':'disabled'} title="${pode?'Clique para alterar':''}"><span class="dot"></span>${r.retorno?'Respondido':'Aguardando'}</button></div>
-        <div class="c-edit"><button class="iconbtn" data-edit="${esc(r.id)}" title="Editar" ${pode?'':'disabled'}>${ICON_EDIT}</button></div>
+        <div class="c-edit" style="display:flex;gap:2px"><button class="iconbtn" data-dados="${esc(r.id)}" title="Ver dados enviados para a Cemig">${ICON_DADOS}</button><button class="iconbtn" data-edit="${esc(r.id)}" title="Editar" ${pode?'':'disabled'}>${ICON_EDIT}</button></div>
       </div>`).join('');
 
     if(!lista.length){
       if(dbStatus === 'loading') corpo = `<div class="empty">Carregando…</div>`;
       else if(dbStatus !== 'ok' && dbStatus !== 'slow') corpo = `<div class="empty">—</div>`;
+      else if(statusAtual === 'pendente' && !registros.some(r => grupoReg(r) === grupoAtual && statusReg(r) === 'pendente')) corpo = `<div class="empty"><b>Nenhuma ouvidoria não enviada</b>Quando der problema no site da Cemig, escolha “Deu problema no site” no registro da ouvidoria. Ela fica aqui com todos os dados para outra pessoa tentar de novo.</div>`;
       else if(!registros.some(r => grupoReg(r) === grupoAtual)) corpo = `<div class="empty"><b>Nenhum registro de ${ger?'gerador':'cliente'} ainda</b>As ouvidorias aparecem aqui quando você clica em “Registrar ouvidoria” na aba Gerar.</div>`;
       else corpo = `<div class="empty"><b>Nada encontrado</b>Nenhum registro bate com a busca ou os filtros.</div>`;
     }
     $('list').innerHTML = (lista.length ? head : '') + corpo;
-    const totalGrupo = registros.filter(r => grupoReg(r) === grupoAtual).length;
+    const totalGrupo = registros.filter(r => grupoReg(r) === grupoAtual && (statusAtual === 'todos' || statusReg(r) === statusAtual)).length;
     $('countNote').textContent = lista.length && lista.length !== totalGrupo ? `Mostrando ${lista.length} de ${totalGrupo}` : '';
 
     $('list').querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copiar(b.dataset.copy, null, 'Protocolo copiado'));
@@ -1441,6 +1611,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       b.disabled = false;
     });
     $('list').querySelectorAll('[data-edit]').forEach(b => b.onclick = () => abrirRegistro(b.dataset.edit));
+    $('list').querySelectorAll('[data-dados]').forEach(b => b.onclick = () => abrirDados(b.dataset.dados));
     if(destacar){ const el = $('list').querySelector('.lrow.flash'); if(el){ setTimeout(()=>el.scrollIntoView({block:'nearest', behavior:'smooth'}), 50); } setTimeout(()=>{ destacar = null; }, 2300); }
   }
 
@@ -1565,11 +1736,17 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const linha = r => [r.mes||'', r.responsavel||'', r.nome||'', r.instalacao||'', r.uc||'', r.protocolo||'', r.ns||'', fmtData(r.dataAbertura), r.motivo||'', !!r.retorno, r.obs||''];
     const asc = (a,b) => -ordena(a,b);
     const larg = [12,16,38,14,22,14,16,14,44,10,30];
+    const env = enviados();
+    const pend = registros.filter(r => statusReg(r) === 'pendente').sort((a,b) => (a.primeiraTentativa||'').localeCompare(b.primeiraTentativa||''));
+    const linhaPend = r => { const u = (r.tentativas||[]).slice(-1)[0] || {};
+      return [grupoReg(r) === 'gerador' ? 'Gerador' : 'Cliente', r.mes||'', u.quem || r.responsavel || '', r.nome||'', r.instalacao||'', r.uc||'', r.motivo||'', fmtData(r.primeiraTentativa), fmtData(r.ultimaTentativa), [u.problema, u.obs].filter(Boolean).join(' — '), (r.tentativas||[]).length]; };
     return [
-      {nome:'Cliente', cab:['Mês','Responsável','Nome Cliente','Instalação','UC','Nº Protocolo','Nota de Serviço','Data Abertura','Motivo','Retorno','Observações'],
-        linhas: registros.filter(r=>grupoReg(r)==='cliente').sort(asc).map(linha), larguras:larg},
-      {nome:'Gerador', cab:['Mês','Responsável','Gerador','Instalação','UC','Nº Protocolo','Nota de Serviço','Data Abertura','Motivo','Retorno','Observações'],
-        linhas: registros.filter(r=>grupoReg(r)==='gerador').sort(asc).map(linha), larguras:larg}
+      {nome:'Cliente', cols:10, caixa:9, titulo:'CONTROLER PROTOCOLOS OUVIDORIAS', cab:['Mês','Responsável','Nome Cliente','Instalação','UC','Nº Protocolo','Nota de Serviço','Data Abertura','Motivo','Retorno','Observações'],
+        linhas: env.filter(r=>grupoReg(r)==='cliente').sort(asc).map(linha), larguras:larg},
+      {nome:'Gerador', cols:10, caixa:9, titulo:'CONTROLER PROTOCOLOS OUVIDORIAS', cab:['Mês','Responsável','Gerador','Instalação','UC','Nº Protocolo','Nota de Serviço','Data Abertura','Motivo','Retorno','Observações'],
+        linhas: env.filter(r=>grupoReg(r)==='gerador').sort(asc).map(linha), larguras:larg},
+      {nome:'Não enviadas', cols:11, caixa:-1, titulo:'OUVIDORIAS NÃO ENVIADAS (PROBLEMA NO SITE DA CEMIG)', cab:['Tipo','Mês','Quem tentou','Nome / Gerador','Instalação','UC','Motivo','Primeira tentativa','Última tentativa','Problema','Tentativas'],
+        linhas: pend.map(linhaPend), larguras:[10,12,16,38,14,22,40,14,14,44,10]}
     ];
   }
   $('btnPlanilha').onclick = () => {
@@ -1630,7 +1807,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     clearTimeout(gTimer); gTimer = setTimeout(() => sincronizarGoogle(false), 1200);
   }
   // Formato da planilha "Controler Ouvidoria": título na linha 1, nomes das colunas na linha 3, dados a partir da linha 4, colunas A a J.
-  const G_INICIO = 4, G_COLS = 10, G_FIM = 'J';
+  const G_INICIO = 4;
+  const letraCol = n => String.fromCharCode(64 + n); // 10 → J, 11 → K
   const txt = v => { v = String(v ?? ''); return /^0\d|^\d{16,}$/.test(v) ? "'" + v : v; }; // zeros à esquerda e números enormes ficam como texto
   async function sincronizarGoogle(interativo){
     const g = G(), id = gId();
@@ -1648,18 +1826,20 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         const m2 = await g.planilha(id), ids = {};
         m2.sheets.forEach(x => ids[x.properties.title] = x.properties.sheetId);
         await g.lote(id, novas.flatMap(a => [
-          {repeatCell:{range:{sheetId:ids[a.nome], startRowIndex:G_INICIO-2, endRowIndex:G_INICIO-1, endColumnIndex:G_COLS}, cell:{userEnteredFormat:{backgroundColor:{red:.06,green:.48,blue:.33}, textFormat:{bold:true, foregroundColor:{red:1,green:1,blue:1}}}}, fields:'userEnteredFormat(backgroundColor,textFormat)'}},
-          {setDataValidation:{range:{sheetId:ids[a.nome], startRowIndex:G_INICIO-1, startColumnIndex:9, endColumnIndex:10}, rule:{condition:{type:'BOOLEAN'}}}},
-          ...a.larguras.slice(0, G_COLS).map((w,i) => ({updateDimensionProperties:{range:{sheetId:ids[a.nome], dimension:'COLUMNS', startIndex:i, endIndex:i+1}, properties:{pixelSize: Math.round(w*7.5)}, fields:'pixelSize'}}))
+          {repeatCell:{range:{sheetId:ids[a.nome], startRowIndex:G_INICIO-2, endRowIndex:G_INICIO-1, endColumnIndex:a.cols}, cell:{userEnteredFormat:{backgroundColor:{red:.06,green:.48,blue:.33}, textFormat:{bold:true, foregroundColor:{red:1,green:1,blue:1}}}}, fields:'userEnteredFormat(backgroundColor,textFormat)'}},
+          ...(a.caixa >= 0 ? [{setDataValidation:{range:{sheetId:ids[a.nome], startRowIndex:G_INICIO-1, startColumnIndex:a.caixa, endColumnIndex:a.caixa+1}, rule:{condition:{type:'BOOLEAN'}}}}] : []),
+          ...a.larguras.slice(0, a.cols).map((w,i) => ({updateDimensionProperties:{range:{sheetId:ids[a.nome], dimension:'COLUMNS', startIndex:i, endIndex:i+1}, properties:{pixelSize: Math.round(w*7.5)}, fields:'pixelSize'}}))
         ]));
-        for(const a of novas) await g.gravar(id, `'${a.nome}'!A1:${G_FIM}${G_INICIO-1}`, [['CONTROLER PROTOCOLOS OUVIDORIAS'], [], a.cab.slice(0, G_COLS)]);
+        for(const a of novas) await g.gravar(id, `'${a.nome}'!A1:${letraCol(a.cols)}${G_INICIO-1}`, [[a.titulo], [], a.cab.slice(0, a.cols)]);
       }
       for(const a of abas){
         // quantas linhas de dados já existem (sem ler a coluna das caixinhas, que vai até o fim da aba)
-        const atuais = (await g.ler(id, `'${a.nome}'!A${G_INICIO}:I`)).length;
-        const linhas = a.linhas.map(l => l.slice(0, G_COLS).map((v,i) => typeof v === 'boolean' ? v : (i >= 3 && i <= 6) ? txt(v) : String(v ?? '')));
-        while(linhas.length < atuais) linhas.push(Array(G_COLS - 1).fill('').concat([false]));
-        if(linhas.length) await g.gravar(id, `'${a.nome}'!A${G_INICIO}:${G_FIM}${G_INICIO + linhas.length - 1}`, linhas);
+        const fim = letraCol(a.cols), ateLer = a.caixa >= 0 ? letraCol(a.caixa) : fim;
+        const atuais = (await g.ler(id, `'${a.nome}'!A${G_INICIO}:${ateLer}`)).length;
+        const ehId = i => a.caixa >= 0 ? (i >= 3 && i <= 6) : (i === 4 || i === 5);
+        const linhas = a.linhas.map(l => l.slice(0, a.cols).map((v,i) => typeof v === 'boolean' ? v : typeof v === 'number' ? v : ehId(i) ? txt(v) : String(v ?? '')));
+        while(linhas.length < atuais) linhas.push(Array.from({length: a.cols}, (_, i) => i === a.caixa ? false : ''));
+        if(linhas.length) await g.gravar(id, `'${a.nome}'!A${G_INICIO}:${fim}${G_INICIO + linhas.length - 1}`, linhas);
       }
       store.set('ouv_g_ultima', hora(new Date()));
       gEstado = {tipo:''}; toast('Planilha Google atualizada ✓');
