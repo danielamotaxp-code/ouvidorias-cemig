@@ -85,6 +85,12 @@
   .field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
   .field.err input{border-color:#e0a14a;box-shadow:0 0 0 3px var(--warn-soft)}
   .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .rowcep{display:grid;grid-template-columns:180px 1fr;gap:12px;align-items:end}
+  .rowend{display:grid;grid-template-columns:1fr 130px;gap:12px}
+  .endgrupo{border:1px solid var(--line);border-radius:12px;padding:10px 14px 4px;margin:0 0 14px}
+  .endgrupo legend{font-weight:600;font-size:13.5px;padding:0 6px}
+  .endgrupo .field{margin-bottom:10px}
+  .cepinfo{align-self:center}
   .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
   .seg{display:inline-flex;border:1px solid #d4dad5;border-radius:9px;overflow:hidden;background:#fff}
   .seg button{border:0;background:#fff;padding:8px 14px;font-size:13.5px;font-weight:600;color:var(--muted);display:inline-flex;align-items:center;gap:7px}
@@ -216,7 +222,7 @@
     .layout{grid-template-columns:1fr}
     nav{position:static}
     .result{grid-column:auto}
-    .row2,.row3{grid-template-columns:1fr}
+    .row2,.row3,.rowend,.rowcep{grid-template-columns:1fr}
     .out{grid-template-columns:1fr auto}
     .out .k{grid-column:1/-1}
   }
@@ -507,14 +513,18 @@
 
   // ---------- campos reaproveitados ----------
   const F_NOME_USINA = {k:'nomeUsina', label:'Gerador', ph:'Nome do gerador, como na planilha de usinas', nome:true, help:'Vai para o registro de geradores. Não entra no formulário da Cemig.'};
-  const F_END_USINA  = {k:'endereco', label:'Endereço da usina', ph:'Rua, nº, bairro, cidade'};
+  const F_END_USINA  = {k:'endereco', tipo:'endereco', label:'Endereço da usina'};
   const F_INST_USINA = {k:'instalacao', label:'Nº de instalação da usina', ph:'Ex.: 3015861709'};
   const F_UC_USINA   = {k:'ucUsina', label:'UC da usina', ph:'Nº da unidade consumidora', opt:true, help:'Só para o registro.'};
   const F_NOME_CLI   = {k:'nomeCliente', label:'Nome do cliente', ph:'Como está na Cemig', nome:true};
-  const F_END_CLI    = {k:'endereco', label:'Endereço do cliente', ph:'Rua, nº, bairro, cidade'};
+  const F_END_CLI    = {k:'endereco', tipo:'endereco', label:'Endereço do cliente'};
   const F_INST_CLI   = {k:'instalacao', label:'Nº de instalação do cliente', ph:'Ex.: 3014159765'};
   const F_UC_CLI     = {k:'uc', label:'UC do cliente', ph:'Ex.: 1117.3962.018-53', help:'Vai no relato. Se ficar em branco, o relato usa o nº de instalação.'};
   const F_PF         = {k:'pessoa', label:'Tipo de cliente', tipo:'pfpj'};
+  // Endereço separado igual ao formulário da Cemig (CEP, endereço, número, complemento, bairro, cidade, estado)
+  const UFS = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+  const fmtCep = c => { const d = String(c||'').replace(/\D/g,'').slice(0,8); return d.length > 5 ? d.slice(0,5) + '-' + d.slice(5) : d; };
+  const enderecoCompleto = v => [ [T(v.endereco), T(v.numero)].filter(Boolean).join(', '), T(v.complemento), T(v.bairro), [T(v.cidade), T(v.estado)||'MG'].filter(Boolean).join('/'), T(v.cep) ? 'CEP ' + fmtCep(v.cep) : '' ].filter(x => x && x !== 'MG').join(' - ');
 
   const regUsina = v => ({nome:T(v.nomeUsina), instalacao:T(v.instalacao), uc:T(v.ucUsina)});
   const regCli   = v => ({nome:T(v.nomeCliente), instalacao:T(v.instalacao), uc:T(v.uc)});
@@ -616,7 +626,7 @@ Aguardamos um retorno e a regularização com a maior brevidade possível.`
       ],
       quando:'Quando a resposta do <b>“Cadastro de unidades recebedoras”</b> indeferir clientes por falta de contrato de adesão.',
       campos:[F_NOME_USINA,
-        {k:'endereco', label:'Endereço da usina onde os clientes estão cadastrados', ph:'Rua, nº, bairro, cidade'},
+        {k:'endereco', tipo:'endereco', label:'Endereço da usina onde os clientes estão cadastrados'},
         F_INST_USINA, F_UC_USINA,
         {k:'protocolo', label:'Protocolo “Cadastro de unidades recebedoras”', ph:'Nº do protocolo', help:'Campo “Ver Mais” da usina → “Cadastro de unidades recebedoras”.'},
         {k:'nomePdf', label:'Nome do PDF do Drive dos clientes', ph:'Exatamente como foi anexado na solicitação'}],
@@ -644,7 +654,7 @@ Dessa forma, entendemos que o indeferimento desses clientes ocorreu de forma ind
       aviso:'<b>Divergência real?</b> Se o CPF/CNPJ do contrato não bate com o titular na Cemig, <b>não abra ouvidoria</b>: marque o cliente como <b>“Em análise”</b> no sistema e encaminhe ao time comercial.',
       campos:[
         F_NOME_USINA,
-        {k:'endereco', label:'Endereço da usina onde o cliente está cadastrado', ph:'Rua, nº, bairro, cidade'},
+        {k:'endereco', tipo:'endereco', label:'Endereço da usina onde o cliente está cadastrado'},
         F_INST_USINA,
         {k:'protocolo', label:'Protocolo “Cadastro de unidades recebedoras”', ph:'Nº do protocolo', help:'Campo “Ver Mais” da usina → “Cadastro de unidades recebedoras”.'},
         {k:'uc', label:'UC do cliente', ph:'Unidade consumidora do cliente'},
@@ -771,9 +781,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   function marcadores(grupo, extras){
     const u = grupo === 'Usinas';
     const base = u ? [
-      ['Gerador', v => T(v.nomeUsina)], ['Endereço', v => T(v.endereco)], ['Instalação', v => T(v.instalacao)], ['UC', v => T(v.ucUsina)]
+      ['Gerador', v => T(v.nomeUsina)], ['Endereço', v => enderecoCompleto(v)], ['Instalação', v => T(v.instalacao)], ['UC', v => T(v.ucUsina)]
     ] : [
-      ['Nome do cliente', v => nomeNormal(v.nomeCliente)], ['Endereço', v => T(v.endereco)], ['Instalação', v => T(v.instalacao)], ['UC', v => T(v.uc) || T(v.instalacao)]
+      ['Nome do cliente', v => nomeNormal(v.nomeCliente)], ['Endereço', v => enderecoCompleto(v)], ['Instalação', v => T(v.instalacao)], ['UC', v => T(v.uc) || T(v.instalacao)]
     ];
     return base.concat([['Protocolo', v => T(v.protocolo)], ['CNPJ Watt Wise', () => fixos.cnpjww]],
       (extras||[]).map(c => [c.label, v => c.tipo==='date' ? fmtData(v[c.k]) : c.tipo==='month' ? fmtMes(v[c.k]) : T(v[c.k])]));
@@ -952,6 +962,16 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
             <button type="button" data-pf="PJ" class="${v.pessoa==='PJ'?'on':''}">Pessoa jurídica</button>
           </div><div class="help">Muda a lista de anexos.</div></div>`;
       }
+      if(c.tipo === 'endereco'){
+        const inp = (k, rot, ph, extra) => `<div class="field" id="fw_${k}"><label for="f_${k}">${rot}</label><input id="f_${k}" data-k="${k}" type="text" placeholder="${esc(ph||'')}" value="${esc(v[k]||'')}" ${extra||''}></div>`;
+        const uf = v.estado || 'MG';
+        return `<fieldset class="endgrupo"><legend>${esc(c.label)}</legend>
+          <div class="rowcep">${inp('cep','CEP','00000-000','inputmode="numeric" maxlength="9"')}<div class="field cepinfo" id="cepinfo"><span class="help">Digite o CEP para preencher o resto sozinho.</span></div></div>
+          <div class="rowend">${inp('endereco','Endereço','Rua, avenida…')}${inp('numero','Número','Nº')}</div>
+          <div class="row2">${inp('complemento','Complemento <span class="opt">(opcional)</span>','Apto, sala, bloco…')}${inp('bairro','Bairro','')}</div>
+          <div class="rowend">${inp('cidade','Cidade','')}<div class="field"><label for="f_estado">Estado</label><select id="f_estado" data-k="estado">${UFS.map(u => `<option ${u===uf?'selected':''}>${u}</option>`).join('')}</select></div></div>
+        </fieldset>`;
+      }
       const type = c.tipo === 'date' ? 'date' : c.tipo === 'month' ? 'month' : 'text';
       return `<div class="field" id="fw_${c.k}">
         <label for="f_${c.k}">${c.label}${c.opt?' <span class="opt">(opcional)</span>':''}</label>
@@ -960,8 +980,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         ${c.calc ? `<div class="calc" id="calc_${c.k}" style="display:none"></div>` : ''}
       </div>`;
     }).join('');
-    $('form').querySelectorAll('input[data-k]').forEach(inp => {
-      inp.addEventListener('input', () => { vals()[inp.dataset.k] = inp.value; salvarLocal(); renderResult(); renderCalcs(); limparAviso(); });
+    $('form').querySelectorAll('input[data-k], select[data-k]').forEach(inp => {
+      inp.addEventListener(inp.tagName === 'SELECT' ? 'change' : 'input', () => { vals()[inp.dataset.k] = inp.value; salvarLocal(); renderResult(); renderCalcs(); limparAviso(); if(inp.dataset.k === 'cep') buscarCep(inp); });
       if(inp.dataset.nome){
         inp.addEventListener('blur', () => {
           const n = nomeNormal(inp.value);
@@ -976,6 +996,27 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     });
     $('form').onsubmit = e => e.preventDefault();
     renderCalcs();
+  }
+
+  // CEP → endereço, bairro, cidade e estado (ViaCEP). Só preenche o que estiver vazio ou que veio do CEP anterior.
+  let cepUltimo = '';
+  async function buscarCep(inp){
+    const d = inp.value.replace(/\D/g,''), info = $('cepinfo');
+    if(inp.value !== fmtCep(inp.value) && d.length === 8){ inp.value = fmtCep(d); vals().cep = inp.value; salvarLocal(); }
+    if(d.length !== 8 || d === cepUltimo) return;
+    cepUltimo = d; if(info) info.innerHTML = '<span class="help">Buscando o CEP…</span>';
+    try{
+      const r = await fetch(`https://viacep.com.br/ws/${d}/json/`); const j = await r.json();
+      if(j.erro) throw 0;
+      const v = vals(), auto = v._cepAuto || {};
+      [['endereco', j.logradouro], ['bairro', j.bairro], ['cidade', j.localidade], ['estado', j.uf]].forEach(([k, x]) => {
+        if(x && (!T(v[k]) || v[k] === auto[k])){ v[k] = x; const el = $('f_' + k); if(el) el.value = x; }
+      });
+      v._cepAuto = {endereco: j.logradouro, bairro: j.bairro, cidade: j.localidade, estado: j.uf};
+      salvarLocal(); renderResult();
+      if(info) info.innerHTML = `<span class="calc ok" style="display:block">CEP encontrado: ${esc([j.logradouro, j.bairro, j.localidade + '/' + j.uf].filter(Boolean).join(', '))}. Confira o número.</span>`;
+      const n = $('f_numero'); if(n && !n.value) n.focus();
+    }catch(e){ if(info) info.innerHTML = '<span class="calc wait" style="display:block">Não achei esse CEP. Preencha o endereço à mão.</span>'; }
   }
 
   function renderCalcs(){
@@ -1005,8 +1046,14 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     return [
       {k:'Nome', v: t.contato==='wisecoop' ? fixos.nome : M(nomeNormal(v.nomeCliente),'nome do cliente')},
       {k:'E-mail', v: M(fixos.email,'e-mail (dados fixos)')},
-      {k:'Telefone', v: M(fixos.tel,'telefone (dados fixos)')},
+      {k:'Celular', v: M(fixos.tel,'celular (dados fixos)')},
+      {k:'CEP', v: M(fmtCep(v.cep), 'CEP')},
       {k:'Endereço', v: M(v.endereco, t.contato==='wisecoop' ? 'endereço da usina' : 'endereço do cliente')},
+      {k:'Número', v: M(v.numero, 'número')},
+      T(v.complemento) ? {k:'Complemento', v: T(v.complemento)} : {k:'Complemento', v:'', blank:'Sem complemento: deixar em branco'},
+      {k:'Bairro', v: M(v.bairro, 'bairro')},
+      {k:'Cidade', v: M(v.cidade, 'cidade')},
+      {k:'Estado', v: T(v.estado) || 'MG'},
       {k:'Nº de instalação', v: t.contato==='wisecoop' ? M(v.instalacao,'nº da usina') : M(v.instalacao,'instalação do cliente')},
       {k:'Nº do cliente', v: '', blank:'Deixar em branco'},
       {k:'Protocolo de 1º nível', v: t.protocolo1(v)},
