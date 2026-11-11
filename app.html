@@ -39,6 +39,11 @@
   .btn:hover{border-color:#c9d0ca;background:#fafbf9}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .btn.primary:hover{background:var(--accent-ink)}
+  .gstatus{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2,#55606e);margin:-4px 0 12px}
+  .gstatus .gdot{width:9px;height:9px;border-radius:50%;background:#9aa5b1;flex:none}
+  .gstatus.ok .gdot{background:#1e874b}.gstatus.pend .gdot{background:#d9a21b}.gstatus.err .gdot{background:#c0392b}
+  .gstatus button.lnk{background:none;border:0;padding:0;color:var(--accent-ink);font:inherit;font-weight:600;cursor:pointer;text-decoration:underline}
+  .gstatus input{flex:1;min-width:260px;padding:7px 10px;border:1px solid var(--line,#d5dbe3);border-radius:8px;font:inherit}
   .btn.big{padding:12px 16px;font-size:14.5px;width:100%}
   .btn.danger{color:var(--danger);border-color:#f3c7c2}
   .btn.danger:hover{background:var(--danger-soft)}
@@ -297,11 +302,18 @@
         <button type="button" data-grupo="gerador">Geradores <span class="c" id="cntGer">0</span></button>
       </div>
     </div>
-    <button class="btn" id="btnPlanilha">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
-      Gerar planilha
-    </button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn primary" id="btnGoogle" type="button">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5"/></svg>
+        Atualizar planilha Google
+      </button>
+      <button class="btn" id="btnPlanilha" type="button" title="Baixar uma cópia em .xlsx">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14"/></svg>
+        Baixar .xlsx
+      </button>
+    </div>
   </div>
+  <div id="gStatus" class="gstatus"></div>
   <div id="regBanner"></div>
   <div class="toolbar">
     <div class="search">
@@ -973,7 +985,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       const j = await r.json(); shaFixos = j.sha;
       const d = JSON.parse(b64dec(j.content || '') || '{}');
       fixos = Object.assign({}, FIXOS_PADRAO, d);
-      renderTutorial(); renderResult();
+      renderTutorial(); renderResult(); desenharGoogle();
     }catch(e){}
   }
   async function salvarDadosFixos(novo){
@@ -1014,6 +1026,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     podeEscrever = pronto;
     $('btnRegistrar').disabled = !pronto;
     $('btnPlanilha').hidden = !pronto;
+    $('btnGoogle').hidden = !pronto;
+    desenharGoogle();
     ligarSetup();
   }
 
@@ -1116,6 +1130,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     grupoAtual = doc.grupo; filtroRet = ''; $('fBusca').value = ''; $('fMes').value = '';
     irPara('registro');
     toast('Ouvidoria registrada ✓');
+    agendarGoogle();
   };
 
   // ---------- lista do registro ----------
@@ -1234,14 +1249,14 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('rSave').disabled = true;
     const ok = await gravar(() => col.doc(editId).set(doc));
     $('rSave').disabled = false;
-    if(ok){ fecharModais(); toast('Registro atualizado'); }
+    if(ok){ fecharModais(); toast('Registro atualizado'); agendarGoogle(); }
   };
   $('rDel').onclick = () => {
     $('delConfirm').innerHTML = `<div class="confirm-del"><span>Excluir este registro? Não dá para desfazer.</span><span style="display:flex;gap:6px"><button class="btn" id="delNo" type="button">Não</button><button class="btn danger" id="delYes" type="button">Sim, excluir</button></span></div>`;
     $('delNo').onclick = () => $('delConfirm').innerHTML = '';
     $('delYes').onclick = async () => {
       const ok = await gravar(() => col.doc(editId).delete());
-      if(ok){ fecharModais(); toast('Registro excluído'); }
+      if(ok){ fecharModais(); toast('Registro excluído'); agendarGoogle(); }
     };
   };
 
@@ -1327,6 +1342,91 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     window.__ultimaPlanilha = blob;
     toast('Planilha gerada ✓');
   };
+
+  // ================= PLANILHA GOOGLE (atualiza direto no link) =================
+  // O link fica em dados-fixos.json (planilhaGoogle), igual para toda a equipe.
+  // Abas "Cliente" e "Gerador": os dados são reescritos a partir do registro; a formatação da planilha é mantida.
+  const G = () => (window.PLAT && PLAT.google) || null;
+  let gEstado = {tipo: '', msg: ''}, gTimer = null, gTrocando = false;
+  const gId = () => { const l = fixos.planilhaGoogle || ''; const m = l.match(/\/d\/([a-zA-Z0-9_-]{20,})/); return m ? m[1] : ''; };
+  const hora = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  function desenharGoogle(){
+    const b = $('gStatus'); if(!b) return;
+    if(!podeEscrever){ b.innerHTML = ''; b.className = 'gstatus'; return; }
+    if(!G()){ b.innerHTML = '<span class="gdot"></span>Abra pela plataforma para atualizar a planilha Google.'; b.className = 'gstatus'; return; }
+    if(!gId() || gTrocando){
+      b.className = 'gstatus pend';
+      b.innerHTML = `<span class="gdot"></span><span>Cole o link da planilha Google do controle de ouvidorias:</span><input id="gLink" placeholder="https://docs.google.com/spreadsheets/d/…" value="${esc(fixos.planilhaGoogle||'')}"><button class="btn" id="gSalvarLink" type="button">Vincular</button>${gTrocando?'<button class="lnk" id="gCancelar" type="button">Cancelar</button>':''}`;
+      $('gSalvarLink').onclick = vincularLink;
+      if($('gCancelar')) $('gCancelar').onclick = () => { gTrocando = false; desenharGoogle(); };
+      return;
+    }
+    const abrir = `<a href="https://docs.google.com/spreadsheets/d/${esc(gId())}/edit" target="_blank" rel="noopener">Abrir planilha</a>`;
+    const trocar = '<button class="lnk" id="gTrocar" type="button">Trocar link</button>';
+    const ult = store.get('ouv_g_ultima', '');
+    let txt;
+    if(gEstado.tipo === 'indo') txt = 'Atualizando a planilha Google…';
+    else if(gEstado.tipo === 'err') txt = gEstado.msg;
+    else if(gEstado.tipo === 'pend') txt = 'Há alterações que ainda não foram para a planilha. <button class="lnk" id="gAgora" type="button">Atualizar agora</button>';
+    else if(G().conectado()) txt = 'Planilha Google ligada: cada registro, edição ou exclusão atualiza a planilha sozinho.' + (ult ? ` Última atualização às ${esc(ult)}.` : '');
+    else txt = 'Planilha Google vinculada. Clique em <b>Atualizar planilha Google</b> uma vez para conectar; depois disso ela se atualiza sozinha a cada registro.' + (ult ? ` Última atualização às ${esc(ult)}.` : '');
+    b.className = 'gstatus ' + (gEstado.tipo === 'err' ? 'err' : gEstado.tipo === 'pend' ? 'pend' : G().conectado() ? 'ok' : '');
+    b.innerHTML = `<span class="gdot"></span><span>${txt}</span>${abrir}${trocar}`;
+    $('gTrocar').onclick = () => { gTrocando = true; desenharGoogle(); };
+    if($('gAgora')) $('gAgora').onclick = () => sincronizarGoogle(true);
+  }
+  async function vincularLink(){
+    const v = ($('gLink').value || '').trim();
+    if(!/\/spreadsheets\/d\/[a-zA-Z0-9_-]{20,}/.test(v)){ toast('Esse não parece um link do Google Planilhas.'); return; }
+    try{ await salvarDadosFixos(Object.assign({}, fixos, {planilhaGoogle: v})); }
+    catch(e){ toast(erroEscrita(e)); return; }
+    gTrocando = false; toast('Planilha vinculada para toda a equipe');
+    sincronizarGoogle(true);
+  }
+  function agendarGoogle(){
+    if(!gId() || !G()) return;
+    if(!G().conectado()){ gEstado = {tipo:'pend'}; desenharGoogle(); return; }
+    clearTimeout(gTimer); gTimer = setTimeout(() => sincronizarGoogle(false), 1200);
+  }
+  const txt = v => { v = String(v ?? ''); return /^[\d.\/-]+$/.test(v) && v ? "'" + v : v; }; // mantém zeros e números longos como texto
+  async function sincronizarGoogle(interativo){
+    const g = G(), id = gId();
+    if(!g){ toast('Abra pela plataforma para atualizar a planilha Google.'); return; }
+    if(!id){ gTrocando = true; desenharGoogle(); toast('Cole o link da planilha primeiro.'); return; }
+    if(!interativo && !g.conectado()){ gEstado = {tipo:'pend'}; desenharGoogle(); return; }
+    gEstado = {tipo:'indo'}; desenharGoogle(); $('btnGoogle').disabled = true;
+    try{
+      await atualizarLista(true);
+      const meta = await g.planilha(id);
+      const existentes = (meta.sheets || []).map(x => x.properties.title);
+      const abas = montarAbas(), novas = abas.filter(a => !existentes.includes(a.nome));
+      if(novas.length){
+        await g.lote(id, novas.map(a => ({addSheet:{properties:{title:a.nome, gridProperties:{frozenRowCount:1}}}})));
+        const m2 = await g.planilha(id), ids = {};
+        m2.sheets.forEach(x => ids[x.properties.title] = x.properties.sheetId);
+        await g.lote(id, novas.flatMap(a => [
+          {repeatCell:{range:{sheetId:ids[a.nome], startRowIndex:0, endRowIndex:1}, cell:{userEnteredFormat:{backgroundColor:{red:.06,green:.48,blue:.33}, textFormat:{bold:true, foregroundColor:{red:1,green:1,blue:1}}}}, fields:'userEnteredFormat(backgroundColor,textFormat)'}},
+          {setDataValidation:{range:{sheetId:ids[a.nome], startRowIndex:1, startColumnIndex:9, endColumnIndex:10}, rule:{condition:{type:'BOOLEAN'}}}},
+          ...a.larguras.map((w,i) => ({updateDimensionProperties:{range:{sheetId:ids[a.nome], dimension:'COLUMNS', startIndex:i, endIndex:i+1}, properties:{pixelSize: Math.round(w*7.5)}, fields:'pixelSize'}}))
+        ]));
+      }
+      for(const a of abas){
+        const atuais = (await g.ler(id, `'${a.nome}'!A:K`)).length;
+        const linhas = [a.cab].concat(a.linhas.map(l => l.map((v,i) => typeof v === 'boolean' ? v : (i === 3 || i === 4 || i === 5 || i === 6) ? txt(v) : String(v ?? ''))));
+        while(linhas.length < atuais) linhas.push(Array(a.cab.length).fill(''));
+        await g.gravar(id, `'${a.nome}'!A1:K${linhas.length}`, linhas);
+      }
+      store.set('ouv_g_ultima', hora(new Date()));
+      gEstado = {tipo:''}; toast('Planilha Google atualizada ✓');
+    }catch(e){
+      const m = String(e && e.message || e);
+      gEstado = {tipo:'err', msg: /cancel|não concluído/i.test(m) ? 'O login do Google não foi concluído. Clique em Atualizar planilha Google para tentar de novo.'
+        : /permission|PERMISSION|403/.test(m) ? 'Sua conta Google não tem permissão de edição nessa planilha. Peça acesso de editor à Daniela.'
+        : /not found|404/i.test(m) ? 'Não achei essa planilha. Confira o link (Trocar link).'
+        : 'Não foi possível atualizar a planilha agora: ' + esc(m)};
+    }finally{ $('btnGoogle').disabled = false; desenharGoogle(); }
+  }
+  $('btnGoogle').onclick = () => sincronizarGoogle(true);
 
   // ================= LOGIN =================
   const USUARIOS = ['Daniela','Paula','Pedro','Victor','Ytala'];
