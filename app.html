@@ -1388,7 +1388,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     if(!G().conectado()){ gEstado = {tipo:'pend'}; desenharGoogle(); return; }
     clearTimeout(gTimer); gTimer = setTimeout(() => sincronizarGoogle(false), 1200);
   }
-  const txt = v => { v = String(v ?? ''); return /^[\d.\/-]+$/.test(v) && v ? "'" + v : v; }; // mantém zeros e números longos como texto
+  // Formato da planilha "Controler Ouvidoria": título na linha 1, nomes das colunas na linha 3, dados a partir da linha 4, colunas A a J.
+  const G_INICIO = 4, G_COLS = 10, G_FIM = 'J';
+  const txt = v => { v = String(v ?? ''); return /^0\d|^\d{16,}$/.test(v) ? "'" + v : v; }; // zeros à esquerda e números enormes ficam como texto
   async function sincronizarGoogle(interativo){
     const g = G(), id = gId();
     if(!g){ toast('Abra pela plataforma para atualizar a planilha Google.'); return; }
@@ -1401,20 +1403,22 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       const existentes = (meta.sheets || []).map(x => x.properties.title);
       const abas = montarAbas(), novas = abas.filter(a => !existentes.includes(a.nome));
       if(novas.length){
-        await g.lote(id, novas.map(a => ({addSheet:{properties:{title:a.nome, gridProperties:{frozenRowCount:1}}}})));
+        await g.lote(id, novas.map(a => ({addSheet:{properties:{title:a.nome, gridProperties:{frozenRowCount:G_INICIO-1}}}})));
         const m2 = await g.planilha(id), ids = {};
         m2.sheets.forEach(x => ids[x.properties.title] = x.properties.sheetId);
         await g.lote(id, novas.flatMap(a => [
-          {repeatCell:{range:{sheetId:ids[a.nome], startRowIndex:0, endRowIndex:1}, cell:{userEnteredFormat:{backgroundColor:{red:.06,green:.48,blue:.33}, textFormat:{bold:true, foregroundColor:{red:1,green:1,blue:1}}}}, fields:'userEnteredFormat(backgroundColor,textFormat)'}},
-          {setDataValidation:{range:{sheetId:ids[a.nome], startRowIndex:1, startColumnIndex:9, endColumnIndex:10}, rule:{condition:{type:'BOOLEAN'}}}},
-          ...a.larguras.map((w,i) => ({updateDimensionProperties:{range:{sheetId:ids[a.nome], dimension:'COLUMNS', startIndex:i, endIndex:i+1}, properties:{pixelSize: Math.round(w*7.5)}, fields:'pixelSize'}}))
+          {repeatCell:{range:{sheetId:ids[a.nome], startRowIndex:G_INICIO-2, endRowIndex:G_INICIO-1, endColumnIndex:G_COLS}, cell:{userEnteredFormat:{backgroundColor:{red:.06,green:.48,blue:.33}, textFormat:{bold:true, foregroundColor:{red:1,green:1,blue:1}}}}, fields:'userEnteredFormat(backgroundColor,textFormat)'}},
+          {setDataValidation:{range:{sheetId:ids[a.nome], startRowIndex:G_INICIO-1, startColumnIndex:9, endColumnIndex:10}, rule:{condition:{type:'BOOLEAN'}}}},
+          ...a.larguras.slice(0, G_COLS).map((w,i) => ({updateDimensionProperties:{range:{sheetId:ids[a.nome], dimension:'COLUMNS', startIndex:i, endIndex:i+1}, properties:{pixelSize: Math.round(w*7.5)}, fields:'pixelSize'}}))
         ]));
+        for(const a of novas) await g.gravar(id, `'${a.nome}'!A1:${G_FIM}${G_INICIO-1}`, [['CONTROLER PROTOCOLOS OUVIDORIAS'], [], a.cab.slice(0, G_COLS)]);
       }
       for(const a of abas){
-        const atuais = (await g.ler(id, `'${a.nome}'!A:K`)).length;
-        const linhas = [a.cab].concat(a.linhas.map(l => l.map((v,i) => typeof v === 'boolean' ? v : (i === 3 || i === 4 || i === 5 || i === 6) ? txt(v) : String(v ?? ''))));
-        while(linhas.length < atuais) linhas.push(Array(a.cab.length).fill(''));
-        await g.gravar(id, `'${a.nome}'!A1:K${linhas.length}`, linhas);
+        // quantas linhas de dados já existem (sem ler a coluna das caixinhas, que vai até o fim da aba)
+        const atuais = (await g.ler(id, `'${a.nome}'!A${G_INICIO}:I`)).length;
+        const linhas = a.linhas.map(l => l.slice(0, G_COLS).map((v,i) => typeof v === 'boolean' ? v : (i >= 3 && i <= 6) ? txt(v) : String(v ?? '')));
+        while(linhas.length < atuais) linhas.push(Array(G_COLS - 1).fill('').concat([false]));
+        if(linhas.length) await g.gravar(id, `'${a.nome}'!A${G_INICIO}:${G_FIM}${G_INICIO + linhas.length - 1}`, linhas);
       }
       store.set('ouv_g_ultima', hora(new Date()));
       gEstado = {tipo:''}; toast('Planilha Google atualizada ✓');
