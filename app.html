@@ -175,6 +175,15 @@
   .modal p.sub{margin:0 0 16px;color:var(--muted);font-size:13.5px}
   .modal .actions{display:flex;justify-content:space-between;gap:8px;margin-top:8px;flex-wrap:wrap}
   .modal .actions .right{display:flex;gap:8px;margin-left:auto}
+  .novo-tipo{width:100%;margin-top:14px;border:1.5px dashed #c9d1cb;background:none;border-radius:10px;padding:10px;color:var(--accent-ink);font-weight:600;cursor:pointer}
+  .novo-tipo:hover{border-color:var(--accent);background:var(--accent-soft)}
+  .navitem .meu{font-size:11px;font-weight:600;color:var(--accent-ink);background:var(--accent-soft);border-radius:5px;padding:1px 6px;margin-left:4px}
+  .tut-acoes{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .marcadores{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .marcadores button{border:1px solid #d4dad5;background:#f7f8f6;border-radius:999px;padding:3px 10px;font-size:12.5px;cursor:pointer}
+  .marcadores button:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .modal textarea{min-height:70px;resize:vertical;font:inherit}
+  .modal textarea.grande{min-height:190px}
   .confirm-del{background:var(--danger-soft);color:var(--danger);border-radius:9px;padding:10px 12px;font-size:13.5px;margin-top:10px;display:flex;align-items:center;justify-content:space-between;gap:10px}
 
 
@@ -349,6 +358,42 @@
     <div class="actions">
       <span></span>
       <div class="right"><button class="btn" data-close type="button">Cancelar</button><button class="btn primary" id="fxSave" type="button">Salvar</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- =============== MODAL TIPO DE OUVIDORIA =============== -->
+<div class="modal-bg" id="modalTipo">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tTitle" style="max-width:760px">
+    <h2 id="tTitle">Novo tipo de ouvidoria</h2>
+    <p class="sub">Vale para toda a equipe assim que salvar. Aparece no menu da esquerda como uma nova reclamação.</p>
+    <div class="row2">
+      <div class="field"><label>Para quem é</label>
+        <div class="seg" role="group" id="t_grupo"><button type="button" data-g="Usinas" class="on">Usinas (geradores)</button><button type="button" data-g="Clientes">Clientes</button></div>
+        <div class="help" id="t_grupoAjuda"></div></div>
+      <div class="field"><label for="t_num">Nº da reclamação</label><input id="t_num" type="number" min="1"></div>
+    </div>
+    <div class="field"><label for="t_titulo">Nome da reclamação</label><input id="t_titulo" placeholder="Ex.: Leitura estimada pela Cemig"></div>
+    <div class="field"><label for="t_curto">Resumo (aparece embaixo do nome no menu)</label><input id="t_curto" placeholder="Ex.: Conta veio com leitura estimada por 2 meses seguidos"></div>
+    <div class="row2">
+      <div class="field"><label for="t_motivo">Motivo no registro</label><input id="t_motivo" placeholder="Ex.: Leitura estimada"><div class="help">Vai para a coluna Motivo do registro e da planilha.</div></div>
+      <div class="field"><label for="t_prot">Nome do protocolo de 1º nível</label><input id="t_prot" placeholder="Ex.: Protocolo genérico do dia"></div>
+    </div>
+    <div class="field"><label for="t_objetivo">Objetivo</label><textarea id="t_objetivo"></textarea></div>
+    <div class="field"><label for="t_quando">Quando abrir</label><textarea id="t_quando"></textarea></div>
+    <div class="field"><label for="t_explicacao">Explicação completa <span class="opt">(opcional)</span></label><textarea id="t_explicacao"></textarea><div class="help">Deixe uma linha em branco entre os parágrafos.</div></div>
+    <div class="field"><label for="t_aviso">Aviso em destaque <span class="opt">(opcional)</span></label><textarea id="t_aviso" style="min-height:48px"></textarea></div>
+    <div class="field"><label for="t_campos">Outros dados a preencher <span class="opt">(opcional)</span></label><textarea id="t_campos" placeholder="Um por linha. Ex.:&#10;Mês da leitura estimada (mês)&#10;Data da reclamação anterior (data)&#10;Observação (opcional)"></textarea>
+      <div class="help">Nome, endereço, instalação, UC e protocolo já entram sozinhos. No fim da linha, use (data), (mês) ou (opcional) se precisar.</div></div>
+    <div class="field"><label for="t_anexos">Anexos</label><textarea id="t_anexos" placeholder="Um por linha. Para clientes, comece com PJ: o que só vale para pessoa jurídica."></textarea></div>
+    <div class="field"><label for="t_relato">Relato</label><textarea id="t_relato" class="grande" placeholder="Texto que vai no relato da Cemig. Clique nos dados abaixo para inserir onde o cursor estiver."></textarea>
+      <div class="marcadores" id="t_marcadores"></div>
+      <div class="help">Os dados entre chaves, como {Instalação}, são trocados pelo que a pessoa preencher.</div></div>
+    <div id="t_erro"></div>
+    <div id="t_del"></div>
+    <div class="actions">
+      <button class="btn danger" id="tExcluir" type="button" hidden>Excluir este tipo</button>
+      <div class="right"><button class="btn" data-close type="button">Cancelar</button><button class="btn primary" id="tSalvar" type="button">Salvar tipo</button></div>
     </div>
   </div>
 </div>
@@ -703,7 +748,153 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   ];
   const motivoPadrao = t => `${t.motivoReg}, reclamação ${t.num}.`;
   const tipoPorNum = n => TIPOS.find(t => t.num === +n);
-  const grupoDe = num => (+num <= 5 ? 'gerador' : 'cliente');
+  const grupoDe = num => { const t = tipoPorNum(num); return t ? (t.grupo === 'Usinas' ? 'gerador' : 'cliente') : (+num <= 5 ? 'gerador' : 'cliente'); };
+
+  // ---------- tipos novos (criados pela equipe no site; ficam em tipos.json no repositório privado) ----------
+  const TIPOS_BASE = TIPOS.slice();
+  let tiposNovos = [];
+  const norm = s => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+  const slug = s => norm(s).replace(/ /g,'-').slice(0,40) || 'campo';
+  const htmlTexto = s => esc(s||'').replace(/\n/g,'<br>');
+  function lerCampos(texto){
+    return String(texto||'').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      let label = l, tipo = 'text', opt = false, m;
+      while((m = label.match(/\s*\((data|m[eê]s|opcional)\)\s*$/i))){
+        const w = norm(m[1]); if(w === 'data') tipo = 'date'; else if(w === 'mes') tipo = 'month'; else opt = true;
+        label = label.slice(0, m.index).trim();
+      }
+      return {k:'x-' + slug(label), label, tipo, opt};
+    });
+  }
+  const camposTexto = cs => (cs||[]).map(c => c.label + (c.tipo==='date'?' (data)':c.tipo==='month'?' (mês)':'') + (c.opt?' (opcional)':'')).join('\n');
+  // dados que podem ir no relato, por grupo
+  function marcadores(grupo, extras){
+    const u = grupo === 'Usinas';
+    const base = u ? [
+      ['Gerador', v => T(v.nomeUsina)], ['Endereço', v => T(v.endereco)], ['Instalação', v => T(v.instalacao)], ['UC', v => T(v.ucUsina)]
+    ] : [
+      ['Nome do cliente', v => nomeNormal(v.nomeCliente)], ['Endereço', v => T(v.endereco)], ['Instalação', v => T(v.instalacao)], ['UC', v => T(v.uc) || T(v.instalacao)]
+    ];
+    return base.concat([['Protocolo', v => T(v.protocolo)], ['CNPJ Watt Wise', () => fixos.cnpjww]],
+      (extras||[]).map(c => [c.label, v => c.tipo==='date' ? fmtData(v[c.k]) : c.tipo==='month' ? fmtMes(v[c.k]) : T(v[c.k])]));
+  }
+  function montarTipo(d){
+    const u = d.grupo === 'Usinas', extras = d.campos || [];
+    const mapa = {}; marcadores(d.grupo, extras).forEach(([n,f]) => mapa[norm(n)] = [n,f]);
+    if(!u) mapa[norm('Cliente')] = mapa[norm('Nome do cliente')]; else mapa[norm('Usina')] = mapa[norm('Gerador')];
+    const anexos = (d.anexos||[]);
+    return {
+      num: +d.num, id: d.id, grupo: u ? 'Usinas' : 'Clientes', novo: true, dados: d,
+      criadoPor: d.criadoPor, atualizadoEm: d.atualizadoEm,
+      titulo: (u ? 'Usinas — ' : 'Clientes — ') + d.titulo, curto: d.curto || '',
+      motivoReg: d.motivo || d.titulo, contato: u ? 'wisecoop' : 'cliente',
+      objetivo: htmlTexto(d.objetivo), quando: htmlTexto(d.quando), aviso: d.aviso ? htmlTexto(d.aviso) : '',
+      explicacao: String(d.explicacao||'').split(/\n\s*\n/).map(x => x.trim()).filter(Boolean).map(htmlTexto),
+      campos: (u ? [F_NOME_USINA, F_END_USINA, F_INST_USINA, F_UC_USINA] : [F_NOME_CLI, F_END_CLI, F_INST_CLI, F_UC_CLI])
+        .concat([{k:'protocolo', label: d.protocoloNome || 'Protocolo de 1º nível', ph:'Nº do protocolo'}],
+          extras.map(c => ({k:c.k, label:c.label, tipo:c.tipo, opt:c.opt, ph:''})), u ? [] : [F_PF]),
+      reg: u ? regUsina : regCli,
+      protocolo1: v => M(v.protocolo, (d.protocoloNome || 'protocolo').toLowerCase()),
+      anexos: v => anexos.filter(a => !/^pj\s*:/i.test(a) || v.pessoa === 'PJ').map(a => a.replace(/^pj\s*:\s*/i,'')),
+      relato: v => String(d.relato||'').replace(/\{([^{}]+)\}/g, (m0, n) => { const x = mapa[norm(n)]; return x ? M(x[1](v), x[0]) : m0; })
+    };
+  }
+  function aplicarTipos(){
+    TIPOS.length = 0;
+    TIPOS.push(...TIPOS_BASE, ...tiposNovos.map(montarTipo));
+    TIPOS.sort((a,b) => a.num - b.num);
+    if(!TIPOS.find(t => t.id === atual)) atual = TIPOS[0].id;
+  }
+  const API_TIPOS = () => `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/tipos.json`;
+  async function carregarTipos(){
+    try{
+      const r = await ghFetch(`${API_TIPOS()}?ref=${CFG.branch}&t=${Date.now()}`);
+      if(!r.ok) return;
+      const j = await r.json(), d = JSON.parse(b64dec(j.content || '') || '{}');
+      tiposNovos = Array.isArray(d.tipos) ? d.tipos : [];
+      aplicarTipos(); renderGerador(); renderRegistro();
+    }catch(e){}
+  }
+  // grava relendo o arquivo antes (duas pessoas salvando ao mesmo tempo não se apagam)
+  async function alterarTipos(fn, msg){
+    for(let i = 0; i < 4; i++){
+      const r0 = await ghFetch(`${API_TIPOS()}?ref=${CFG.branch}&t=${Date.now()}`);
+      if(!r0.ok && r0.status !== 404) throw {status: r0.status};
+      const j0 = r0.ok ? await r0.json() : null;
+      const atualArq = j0 ? JSON.parse(b64dec(j0.content || '') || '{}') : {};
+      const lista = fn(Array.isArray(atualArq.tipos) ? atualArq.tipos : []);
+      const corpo = {message: msg, branch: CFG.branch, content: b64enc(JSON.stringify({versao:1, tipos: lista}, null, 1))};
+      if(j0) corpo.sha = j0.sha;
+      const r = await ghFetch(API_TIPOS(), {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(corpo)});
+      if(r.ok){ tiposNovos = lista; aplicarTipos(); return true; }
+      if(r.status === 409 || r.status === 422) continue;
+      throw {status: r.status};
+    }
+    throw {status: 409};
+  }
+  let tipoEditando = null, grupoEditando = 'Usinas';
+  function desenharMarcadores(){
+    const lista = marcadores(grupoEditando, lerCampos($('t_campos').value)).map(x => x[0]);
+    $('t_marcadores').innerHTML = lista.map(n => `<button type="button" data-m="${esc(n)}">{${esc(n)}}</button>`).join('');
+    $('t_marcadores').querySelectorAll('button').forEach(b => b.onclick = () => {
+      const ta = $('t_relato'), ins = '{' + b.dataset.m + '}', a = ta.selectionStart ?? ta.value.length, z = ta.selectionEnd ?? a;
+      ta.value = ta.value.slice(0, a) + ins + ta.value.slice(z); ta.focus(); ta.selectionStart = ta.selectionEnd = a + ins.length;
+    });
+    $('t_grupoAjuda').textContent = grupoEditando === 'Usinas' ? 'Contato com os dados da Wisecoop; vai para Registro → Geradores.' : 'Contato com o nome do cliente; vai para Registro → Clientes.';
+    $('t_grupo').querySelectorAll('button').forEach(x => x.classList.toggle('on', x.dataset.g === grupoEditando));
+  }
+  $('t_grupo').querySelectorAll('button').forEach(b => b.onclick = () => { grupoEditando = b.dataset.g; desenharMarcadores(); });
+  $('t_campos').addEventListener('input', desenharMarcadores);
+  function abrirTipo(id){
+    if(!token){ toast('Disponível depois da configuração do registro.'); return; }
+    const t = id ? tiposNovos.find(x => x.id === id) : null;
+    tipoEditando = t ? t.id : null; grupoEditando = t ? t.grupo : 'Usinas';
+    $('tTitle').textContent = t ? 'Editar tipo de ouvidoria' : 'Novo tipo de ouvidoria';
+    $('t_num').value = t ? t.num : Math.max(...TIPOS.map(x => x.num)) + 1;
+    $('t_titulo').value = t ? t.titulo : ''; $('t_curto').value = t ? t.curto || '' : '';
+    $('t_motivo').value = t ? t.motivo || '' : ''; $('t_prot').value = t ? t.protocoloNome || '' : '';
+    $('t_objetivo').value = t ? t.objetivo || '' : ''; $('t_quando').value = t ? t.quando || '' : '';
+    $('t_explicacao').value = t ? t.explicacao || '' : ''; $('t_aviso').value = t ? t.aviso || '' : '';
+    $('t_campos').value = t ? camposTexto(t.campos) : ''; $('t_anexos').value = t ? (t.anexos||[]).join('\n') : '';
+    $('t_relato').value = t ? t.relato || '' : '';
+    $('t_erro').innerHTML = ''; $('t_del').innerHTML = ''; $('tExcluir').hidden = !t;
+    desenharMarcadores(); abrirModal('modalTipo'); $('t_titulo').focus();
+  }
+  $('tSalvar').onclick = async () => {
+    const num = +$('t_num').value, titulo = $('t_titulo').value.trim(), relato = $('t_relato').value.trim();
+    const erro = m => { $('t_erro').innerHTML = `<div class="alert"><span>⚠️</span><div>${m}</div></div>`; };
+    if(!titulo) return erro('Dê um nome para a reclamação.');
+    if(!(num >= 1)) return erro('Informe o número da reclamação.');
+    if(TIPOS.some(x => x.num === num && x.id !== tipoEditando)) return erro(`Já existe a Reclamação ${num}. Escolha outro número.`);
+    if(!relato) return erro('Escreva o relato que vai para a Cemig.');
+    const campos = lerCampos($('t_campos').value);
+    const ks = campos.map(c => c.k); if(new Set(ks).size !== ks.length) return erro('Há dois dados com o mesmo nome em "Outros dados a preencher".');
+    const desconhecidos = [...relato.matchAll(/\{([^{}]+)\}/g)].map(m => m[1]).filter(n => !marcadores(grupoEditando, campos).some(x => norm(x[0]) === norm(n)) && !['cliente','usina'].includes(norm(n)));
+    if(desconhecidos.length) return erro(`O relato usa ${desconhecidos.map(n => '{'+esc(n)+'}').join(', ')}, que não está nos dados. Confira o nome ou inclua em "Outros dados a preencher".`);
+    const agora = new Date().toISOString();
+    const antigo = tipoEditando ? tiposNovos.find(x => x.id === tipoEditando) : null;
+    const d = {
+      id: tipoEditando || ('novo-' + slug(titulo) + '-' + Date.now().toString(36)), num, grupo: grupoEditando, titulo,
+      curto: $('t_curto').value.trim(), motivo: $('t_motivo').value.trim() || titulo, protocoloNome: $('t_prot').value.trim(),
+      objetivo: $('t_objetivo').value.trim(), quando: $('t_quando').value.trim(), explicacao: $('t_explicacao').value.trim(), aviso: $('t_aviso').value.trim(),
+      campos, anexos: $('t_anexos').value.split('\n').map(x => x.trim()).filter(Boolean), relato,
+      criadoPor: antigo ? antigo.criadoPor : quem(), criadoEm: antigo ? antigo.criadoEm : agora, atualizadoEm: agora, atualizadoPor: quem()
+    };
+    $('tSalvar').disabled = true;
+    const ok = await gravar(() => alterarTipos(l => l.filter(x => x.id !== d.id).concat([d]), `${antigo ? 'Edita' : 'Novo'} tipo de ouvidoria: Reclamação ${num} · ${titulo} (${quem()})`));
+    $('tSalvar').disabled = false;
+    if(ok){ fecharModais(); atual = d.id; store.set('ouv_tipo', atual); renderGerador(); toast(antigo ? 'Tipo de ouvidoria atualizado' : 'Novo tipo de ouvidoria criado para toda a equipe'); }
+  };
+  $('tExcluir').onclick = () => {
+    const t = tiposNovos.find(x => x.id === tipoEditando); if(!t) return;
+    const usados = registros.filter(r => +r.reclamacao === +t.num).length;
+    $('t_del').innerHTML = `<div class="confirm-del"><span>Excluir a Reclamação ${t.num} do menu?${usados ? ` Os ${usados} registro(s) já feitos com ela continuam no registro.` : ''}</span><span style="display:flex;gap:6px"><button class="btn" id="tDelNao" type="button">Não</button><button class="btn danger" id="tDelSim" type="button">Sim, excluir</button></span></div>`;
+    $('tDelNao').onclick = () => $('t_del').innerHTML = '';
+    $('tDelSim').onclick = async () => {
+      const ok = await gravar(() => alterarTipos(l => l.filter(x => x.id !== t.id), `Exclui tipo de ouvidoria: Reclamação ${t.num} · ${t.titulo} (${quem()})`));
+      if(ok){ fecharModais(); renderGerador(); toast('Tipo de ouvidoria excluído'); }
+    };
+  };
 
   // ---------- estado do gerador ----------
   let atual = store.get('ouv_tipo', TIPOS[0].id);
@@ -723,10 +914,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           const nome = t.titulo.replace(/^(Usinas|Clientes) — /,'');
           return `<button class="navitem ${t.id===atual?'active':''}" data-id="${t.id}">
             <span class="num">${t.num}</span>
-            <span><span class="n">Reclamação ${t.num} · ${esc(nome.charAt(0).toUpperCase()+nome.slice(1))}</span>
+            <span><span class="n">Reclamação ${t.num} · ${esc(nome.charAt(0).toUpperCase()+nome.slice(1))}${t.novo?'<span class="meu">novo</span>':''}</span>
             <span class="d">${esc(t.curto)}</span></span>
           </button>`;}).join('')}
-      </div>`).join('');
+      </div>`).join('') + `<button class="novo-tipo" id="btnNovoTipo" type="button">+ Novo tipo de ouvidoria</button>`;
+    $('btnNovoTipo').onclick = () => abrirTipo(null);
     $('nav').querySelectorAll('.navitem').forEach(b => b.onclick = () => {
       atual = b.dataset.id; store.set('ouv_tipo', atual); renderGerador();
       if(window.innerWidth < 780) $('tutorial').scrollIntoView({behavior:'smooth'});
@@ -745,7 +937,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         <summary>Ver explicação completa</summary>
         ${t.explicacao.map(p=>`<p>${p.replace('{{loginCemig}}', esc(fixos.loginCemig || 'da Watt Wise'))}</p>`).join('')}
         <p><span class="label">Contato no formulário:</span> ${t.contato==='wisecoop' ? 'dados da Wisecoop (nome da cooperativa).' : '<b>nome do cliente</b>, com e-mail e telefone da Wisecoop.'} Número do cliente: deixar em branco.</p>
-      </details>`;
+      </details>
+      ${t.novo ? `<div class="tut-acoes"><button class="btn" type="button" id="btnEditarTipo">Editar este tipo</button><span class="help" style="align-self:center">Criado por ${esc(t.criadoPor||'equipe')}${t.atualizadoEm?' · alterado em '+esc(new Date(t.atualizadoEm).toLocaleDateString('pt-BR')):''}</span></div>` : ''}`;
+    if(t.novo) $('btnEditarTipo').onclick = () => abrirTipo(t.id);
   }
 
   function renderForm(){
@@ -893,7 +1087,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     FX.forEach(k => $('fx_'+k).value = fixos[k] || ''); abrirModal('modalFixos');
   };
   $('fxSave').onclick = async () => {
-    const novo = {}; FX.forEach(k => novo[k] = $('fx_'+k).value.trim());
+    const novo = Object.assign({}, fixos); FX.forEach(k => novo[k] = $('fx_'+k).value.trim());
     $('fxSave').disabled = true;
     const ok = await gravar(() => salvarDadosFixos(novo));
     $('fxSave').disabled = false;
@@ -1067,7 +1261,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     try{ token = sessionStorage.getItem('ouv_tok') || null; }catch(e){ token = null; }
     dbStatus = token ? 'loading' : 'setup';
     setBanner(); renderRegistro();
-    if(token){ carregarDadosFixos(); await atualizarLista(); iniciarPolling(); }
+    if(token){ carregarDadosFixos(); carregarTipos(); await atualizarLista(); iniciarPolling(); }
   }
 
   function erroEscrita(e){
