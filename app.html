@@ -168,6 +168,24 @@
   .dados-relato{white-space:pre-wrap;background:#f7f8f6;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13.5px;max-height:260px;overflow:auto}
   .dados-hist{font-size:13px;color:var(--muted);margin:0;padding-left:18px}
   .modal h4{margin:16px 0 6px;font-size:14px}
+  .anx{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:2px 0 14px;background:#fbfcfb}
+  .anx h4{margin:0 0 6px;font-size:13.5px;display:flex;justify-content:space-between;gap:8px}
+  .anx h4 small{font-weight:400;color:var(--muted)}
+  .anx-slot{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:6px 0;border-top:1px dashed var(--line)}
+  .anx-slot:first-of-type{border-top:0}
+  .anx-slot .n{font-size:13px}
+  .anx-slot.video .n{font-weight:600}
+  .anx-slot.video.destaque{background:#fff4e6;border-radius:8px;padding:6px 8px;border-top:0;margin:4px 0}
+  .anx-slot .lista{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
+  .anx-file{display:inline-flex;align-items:center;gap:6px;background:#eef3ef;border:1px solid #d5e2d9;border-radius:999px;padding:2px 4px 2px 10px;font-size:12.5px;max-width:100%}
+  .anx-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:260px}
+  .anx-file button{border:0;background:none;cursor:pointer;color:var(--muted);font-size:13px;padding:0 4px}
+  .anx-file a{color:var(--accent-ink);font-weight:600;text-decoration:none}
+  .anx-btn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;font:inherit;font-size:12.5px;cursor:pointer;white-space:nowrap}
+  .anx-btn:hover{border-color:var(--accent);color:var(--accent-ink)}
+  .anx-file .anx-btn{border:1px solid var(--line);background:#fff;padding:3px 9px;border-radius:7px;color:var(--ink,#1d2a24);font-size:12.5px}
+  .dados-arq > span:first-child{max-width:none;white-space:normal;overflow:visible}
+  .anx-prog{font-size:12.5px;color:var(--muted);margin-top:6px}
   .rchip{display:inline-block;font-weight:700;font-size:12px;background:#eef1ed;color:#3b4842;padding:3px 8px;border-radius:6px;white-space:nowrap}
   .who{font-weight:600;font-size:14px;line-height:1.35;word-break:break-word}
   .sub2{font-size:12.5px;color:var(--soft);font-variant-numeric:tabular-nums;margin-top:1px;word-break:break-word}
@@ -315,6 +333,7 @@
           <select id="s_prob"><option value="">Escolha…</option><option>Site fora do ar</option><option>Erro ao anexar documentos</option><option>Erro ao enviar o formulário</option><option>Captcha não funcionou</option><option>Enviou, mas não gerou protocolo</option><option>Outro</option></select></div>
         <div class="field"><label for="s_pobs">Observação <span class="opt">(opcional)</span></label><textarea id="s_pobs" rows="2" placeholder="Ex.: travou no anexo da procuração"></textarea></div>
       </div>
+      <div class="anx" id="anxBox"></div>
       <div class="row2" id="blocoOk">
         <div class="field" id="fw_prot"><label for="s_protocolo">Nº do protocolo da ouvidoria</label><input id="s_protocolo" placeholder="Gerado pela Cemig ao enviar"></div>
         <div class="field"><label for="s_ns">Nota de serviço</label><input id="s_ns" readonly tabindex="-1" style="background:#f4f6f3;color:var(--muted)"><div class="help">Preenchida com o protocolo de 1º nível.</div></div>
@@ -1111,6 +1130,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
 
   function renderResult(){
+    try{ desenharAnexos(); }catch(e){}
     const t = tipo(), v = vals();
     const outs = saidas(), rel = t.relato(v);
     $('outputs').innerHTML = outs.map((o,i) => `
@@ -1365,6 +1385,95 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     catch(e){ toast(erroEscrita(e)); return false; }
   }
 
+  // ---------- anexos (documentos e vídeo do envio) ----------
+  // Ficam no repositório privado em anexos/<id do cadastro>/; a lista vai em "arquivos" no cadastro.
+  const ANX_MAX = 95 * 1024 * 1024;
+  const ANX_VIDEO = 'Vídeo do envio', ANX_OUTRO = 'Outro documento';
+  let anxPend = {}; // documento → [File] escolhidos no gerador, enviados ao registrar
+  const tam = b => b >= 1048576 ? (b/1048576).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' MB' : Math.max(1, Math.round(b/1024)) + ' KB';
+  const nomeSeguro = n => String(n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w.\-]+/g,'_').slice(-80);
+  function slotsDe(lista){ return (lista || []).concat([ANX_VIDEO, ANX_OUTRO]); }
+  function anxEscolher(slot, cb){
+    const inp = document.createElement('input'); inp.type = 'file'; inp.multiple = true;
+    inp.accept = slot === ANX_VIDEO ? 'video/*' : '.pdf,image/*,.doc,.docx,.xls,.xlsx,video/*';
+    inp.onchange = () => {
+      const fs = [...inp.files], grandes = fs.filter(f => f.size > ANX_MAX);
+      if(grandes.length) toast(`${grandes.map(f => f.name).join(', ')}: passa de 95 MB. Grave um vídeo mais curto ou com resolução menor.`);
+      cb(fs.filter(f => f.size <= ANX_MAX));
+    };
+    inp.click();
+  }
+  function desenharAnexos(){
+    const box = $('anxBox'); if(!box) return;
+    const t = tipo(), v = vals(), slots = slotsDe(t.anexos(v)), erro = resultado === 'erro';
+    const pend = pendenteAtual && registros.find(r => r.id === pendenteAtual);
+    const ja = (pend && pend.arquivos) || [];
+    Object.keys(anxPend).forEach(k => { if(!slots.includes(k)) delete anxPend[k]; });
+    box.innerHTML = `<h4>Documentos e vídeo desta ouvidoria <small>vão junto com o cadastro (até 95 MB cada)</small></h4>` + slots.map((sl, i) => {
+      const novos = anxPend[sl] || [], antigos = ja.filter(a => a.documento === sl);
+      const video = sl === ANX_VIDEO;
+      return `<div class="anx-slot ${video ? 'video' : ''} ${video && erro ? 'destaque' : ''}">
+        <span class="n">${video ? '🎥 ' : '📄 '}${esc(sl)}${video && erro ? ' <small style="font-weight:400">— grave a tela mostrando o erro, serve de prova</small>' : ''}</span>
+        <button class="anx-btn" type="button" data-anx="${i}">${video ? 'Anexar vídeo' : 'Anexar'}</button>
+        ${novos.length || antigos.length ? `<div class="lista">${antigos.map(a => `<span class="anx-file" title="Já anexado"><span>✓ ${esc(a.nome)}</span></span>`).join('')}${novos.map((f, j) => `<span class="anx-file"><span>${esc(f.name)} · ${tam(f.size)}</span><button type="button" title="Tirar" data-tira="${i}:${j}">✕</button></span>`).join('')}</div>` : ''}
+      </div>`;
+    }).join('') + `<div class="anx-prog" id="anxProg"></div>`;
+    box.querySelectorAll('[data-anx]').forEach(b => b.onclick = () => { const sl = slots[+b.dataset.anx]; anxEscolher(sl, fs => { anxPend[sl] = (anxPend[sl] || []).concat(fs); desenharAnexos(); }); });
+    box.querySelectorAll('[data-tira]').forEach(b => b.onclick = () => { const [i, j] = b.dataset.tira.split(':').map(Number); anxPend[slots[i]].splice(j, 1); desenharAnexos(); });
+  }
+  // envia um arquivo grande ao repositório (blob + commit), com nova tentativa se outra pessoa gravou ao mesmo tempo
+  async function subirArquivo(caminho, file, msg){
+    const api = `https://api.github.com/repos/${CFG.owner}/${CFG.repo}`;
+    const ok = async r => { if(!r.ok) throw {status: r.status}; return r.json(); };
+    const b64 = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(',')[1] || ''); fr.onerror = rej; fr.readAsDataURL(file); });
+    const blob = await ok(await ghFetch(`${api}/git/blobs`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({content: b64, encoding: 'base64'})}));
+    for(let i = 0; i < 5; i++){
+      const ref = await ok(await ghFetch(`${api}/git/ref/heads/${CFG.branch}?t=${Date.now()}`));
+      const base = ref.object.sha, com = await ok(await ghFetch(`${api}/git/commits/${base}`));
+      const tree = await ok(await ghFetch(`${api}/git/trees`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({base_tree: com.tree.sha, tree: [{path: caminho, mode: '100644', type: 'blob', sha: blob.sha}]})}));
+      const nc = await ok(await ghFetch(`${api}/git/commits`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: msg, tree: tree.sha, parents: [base]})}));
+      const r = await ghFetch(`${api}/git/refs/heads/${CFG.branch}`, {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sha: nc.sha})});
+      if(r.ok) return;
+      if(r.status !== 422 && r.status !== 409) throw {status: r.status};
+      await new Promise(z => setTimeout(z, 400 + Math.random() * 600));
+    }
+    throw {status: 409};
+  }
+  async function enviarAnexos(id, porDoc, avisar){
+    const metas = [], itens = Object.entries(porDoc).flatMap(([d, fs]) => fs.map(f => [d, f]));
+    for(let i = 0; i < itens.length; i++){
+      const [documento, f] = itens[i];
+      avisar && avisar(`Enviando anexo ${i + 1} de ${itens.length}: ${f.name} (${tam(f.size)})…`);
+      const caminho = `anexos/${id}/${Date.now().toString(36)}-${nomeSeguro(f.name)}`;
+      await subirArquivo(caminho, f, `Anexo da ouvidoria ${id.slice(0,8)}: ${documento} (${quem()})`);
+      metas.push({documento, nome: f.name, caminho, tamanho: f.size, tipo: f.type || '', enviadoPor: quem(), em: new Date().toISOString()});
+    }
+    return metas;
+  }
+  // grava os anexos e acrescenta na lista do cadastro (relendo o cadastro, para não apagar nada de ninguém)
+  async function anexarNoCadastro(id, porDoc, avisar){
+    const metas = await enviarAnexos(id, porDoc, avisar);
+    if(metas.length) await alterar(l => l.map(r => r.id === id ? Object.assign({}, r, {arquivos: (r.arquivos || []).concat(metas)}) : r), `Anexos da ouvidoria ${id.slice(0,8)} (${quem()})`);
+    return metas.length;
+  }
+  async function baixarArquivo(a, abrir){
+    try{
+      toast('Baixando ' + a.nome + '…');
+      const r = await ghFetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${a.caminho.split('/').map(encodeURIComponent).join('/')}?ref=${CFG.branch}`, {headers: {Accept: 'application/vnd.github.raw'}});
+      if(!r.ok) throw {status: r.status};
+      const url = URL.createObjectURL(new Blob([await r.blob()], {type: a.tipo || 'application/octet-stream'}));
+      const el = document.createElement('a'); el.href = url;
+      if(abrir) el.target = '_blank'; else el.download = a.nome;
+      document.body.appendChild(el); el.click(); el.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+    }catch(e){ toast('Não consegui baixar o arquivo agora. Tente de novo.'); }
+  }
+  async function excluirArquivo(id, a){
+    const api = `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${a.caminho.split('/').map(encodeURIComponent).join('/')}`;
+    const m = await ghFetch(`${api}?ref=${CFG.branch}&t=${Date.now()}`);
+    if(m.ok){ const j = await m.json(); await ghFetch(api, {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: `Exclui anexo ${a.nome} (${quem()})`, sha: j.sha, branch: CFG.branch})}); }
+    await alterar(l => l.map(r => r.id === id ? Object.assign({}, r, {arquivos: (r.arquivos || []).filter(x => x.caminho !== a.caminho)}) : r), `Tira anexo da ouvidoria ${id.slice(0,8)} (${quem()})`);
+  }
+
   // ---------- registrar a partir do gerador ----------
   // Resultado no site da Cemig: "ok" (enviada, vai para o registro e a planilha) ou "erro" (fica em Não enviadas).
   let confirmarIncompleto = false, resultado = 'ok', pendenteAtual = store.get('ouv_pend', null);
@@ -1381,6 +1490,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('pendInfo').innerHTML = p ? `<div class="pendinfo">Reenviando a ouvidoria de <b>${esc(p.nome || 'sem nome')}</b> (${(p.tentativas||[]).length} tentativa${(p.tentativas||[]).length===1?'':'s'} com problema). Se der certo, ela sai de <b>Não enviadas</b> e vai para <b>Enviadas</b>. <button type="button" id="pendCancelar">Não é essa</button></div>` : '';
     if($('pendCancelar')) $('pendCancelar').onclick = () => { pendenteAtual = null; store.set('ouv_pend', null); desenharResultado(); limparAviso(); };
     $('btnRegistrar').textContent = textoBotao();
+    desenharAnexos();
   }
   $('s_result').querySelectorAll('button').forEach(b => b.onclick = () => { resultado = b.dataset.r; desenharResultado(); limparAviso(); });
   // tudo o que é copiado para o site da Cemig, guardado junto com o cadastro (deu certo ou não)
@@ -1434,12 +1544,13 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('btnRegistrar').disabled = true;
     let ref;
     if(pend){ // a que estava em Não enviadas agora deu certo: vira enviada, guardando o histórico das tentativas
-      Object.assign(doc, {criadoEm: pend.criadoEm, primeiraTentativa: pend.primeiraTentativa, tentativas: pend.tentativas || [], obs: pend.obs || ''});
+      Object.assign(doc, {criadoEm: pend.criadoEm, primeiraTentativa: pend.primeiraTentativa, tentativas: pend.tentativas || [], obs: pend.obs || '', arquivos: pend.arquivos || []});
       ref = await gravar(() => col.doc(pend.id).set(doc).then(() => ({id: pend.id})));
     } else ref = await gravar(() => col.add(doc));
     $('btnRegistrar').disabled = false;
     if(!ref) return;
     pendenteAtual = null; store.set('ouv_pend', null); statusAtual = 'enviada';
+    await subirPendentesDoGerador(ref.id);
     // limpa para a próxima ouvidoria
     valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal();
     $('s_protocolo').value = ''; $('s_ret').checked = false; $('s_data').value = isoHoje();
@@ -1451,6 +1562,16 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     toast(doc.tentativas && doc.tentativas.length ? 'Ouvidoria enviada ✓ Saiu de Não enviadas' : 'Ouvidoria registrada ✓');
     agendarGoogle(); desenharResultado();
   };
+
+  async function subirPendentesDoGerador(id){
+    const qtd = Object.values(anxPend).reduce((n, l) => n + l.length, 0);
+    if(!qtd) return;
+    const porDoc = anxPend; anxPend = {};
+    $('btnRegistrar').disabled = true;
+    try{ await anexarNoCadastro(id, porDoc, m => { const p = $('anxProg'); if(p) p.textContent = m; toast(m); }); toast(`${qtd} anexo${qtd>1?'s':''} salvo${qtd>1?'s':''} no cadastro ✓`); }
+    catch(e){ anxPend = porDoc; toast('O cadastro foi salvo, mas os anexos não subiram. Abra o 📋 do cadastro e anexe de novo.'); }
+    finally{ $('btnRegistrar').disabled = false; desenharAnexos(); }
+  }
 
   // deu problema no site da Cemig: guarda tudo para outra pessoa tentar de novo
   async function salvarNaoEnviada(t, v, r){
@@ -1475,6 +1596,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const ref = pend ? await gravar(() => col.doc(pend.id).set(doc).then(() => ({id: pend.id}))) : await gravar(() => col.add(doc));
     $('btnRegistrar').disabled = false;
     if(!ref) return;
+    await subirPendentesDoGerador(ref.id);
     valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal();
     $('s_prob').value = ''; $('s_pobs').value = ''; $('s_data').value = isoHoje();
     pendenteAtual = null; store.set('ouv_pend', null); resultado = 'ok';
@@ -1504,6 +1626,27 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       $('dCorpo').querySelectorAll('[data-dc]').forEach(b => b.onclick = () => copiar(e.campos[+b.dataset.dc].v, b));
       $('dCopRel').onclick = () => copiar(e.relato, $('dCopRel'), 'Relato copiado');
     }
+    const arqs = r.arquivos || [], docs = slotsDe((e && e.anexos) || []);
+    $('dCorpo').insertAdjacentHTML('beforeend', `<h4>Arquivos anexados</h4>
+      ${arqs.length ? `<div style="display:flex;flex-direction:column;gap:6px">${arqs.map((a, i) => `<div class="anx-file dados-arq" style="border-radius:10px;justify-content:space-between;padding:6px 8px 6px 12px"><span>${a.documento === ANX_VIDEO ? '🎥' : '📄'} <b>${esc(a.documento)}</b> · ${esc(a.nome)} · ${tam(a.tamanho || 0)} <small style="color:var(--muted)">(${esc(a.enviadoPor || '')}, ${esc(fmtData((a.em||'').slice(0,10)))})</small></span><span style="display:flex;gap:4px">${/^(video|image)\/|pdf/.test(a.tipo||'') ? `<button class="anx-btn" type="button" data-ver="${i}">Ver</button>` : ''}<button class="anx-btn" type="button" data-baixa="${i}">Baixar</button>${podeEscrever ? `<button class="anx-btn" type="button" data-tiraarq="${i}" title="Excluir arquivo">✕</button>` : ''}</span></div>`).join('')}</div>` : '<p class="sub" style="margin:0">Nenhum arquivo anexado ainda.</p>'}
+      ${podeEscrever ? `<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><select id="dDoc" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit">${docs.map(d => `<option>${esc(d)}</option>`).join('')}</select><button class="anx-btn" type="button" id="dAnexar">Anexar arquivo</button><span class="anx-prog" id="dProg"></span></div>` : ''}`);
+    $('dCorpo').querySelectorAll('[data-baixa]').forEach(b => b.onclick = () => baixarArquivo(arqs[+b.dataset.baixa], false));
+    $('dCorpo').querySelectorAll('[data-ver]').forEach(b => b.onclick = () => baixarArquivo(arqs[+b.dataset.ver], true));
+    $('dCorpo').querySelectorAll('[data-tiraarq]').forEach(b => b.onclick = async () => {
+      const a = arqs[+b.dataset.tiraarq];
+      if(b.dataset.conf !== '1'){ b.dataset.conf = '1'; b.textContent = 'Excluir mesmo?'; return; }
+      b.disabled = true;
+      try{ await excluirArquivo(r.id, a); toast('Arquivo excluído'); await atualizarLista(true); abrirDados(r.id); }catch(x){ toast('Não consegui excluir agora.'); b.disabled = false; }
+    });
+    if($('dAnexar')) $('dAnexar').onclick = () => {
+      const documento = $('dDoc').value;
+      anxEscolher(documento, async fs => {
+        if(!fs.length) return;
+        $('dAnexar').disabled = true;
+        try{ await anexarNoCadastro(r.id, {[documento]: fs}, m => $('dProg').textContent = m); toast('Anexado ✓'); await atualizarLista(true); abrirDados(r.id); }
+        catch(x){ $('dProg').textContent = 'Não consegui anexar agora. Tente de novo.'; $('dAnexar').disabled = false; }
+      });
+    };
     $('dReenviar').hidden = !pend || !e || !podeEscrever; $('dExcluir').hidden = !pend || !podeEscrever; $('dDel').innerHTML = '';
     abrirModal('modalDados');
   }
@@ -1649,7 +1792,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     if(!col || !editId) return;
     const prev = registros.find(x=>x.id===editId) || {};
     const num = +$('r_recl').value;
-    const doc = {
+    const doc = Object.assign({}, prev, {
       grupo: grupoDe(num),
       mes: $('r_mes').value, responsavel: nomeNormal($('r_resp').value),
       nome: nomeNormal($('r_nome').value), instalacao: $('r_inst').value.trim(), uc: $('r_uc').value.trim(),
@@ -1657,7 +1800,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       dataAbertura: $('r_data').value, reclamacao: num,
       motivo: $('r_motivo').value.trim(), retorno: $('r_ret').checked, obs: $('r_obs').value.trim(),
       criadoEm: prev.criadoEm || new Date().toISOString()
-    };
+    }); delete doc.id;
     $('rSave').disabled = true;
     const ok = await gravar(() => col.doc(editId).set(doc));
     $('rSave').disabled = false;
