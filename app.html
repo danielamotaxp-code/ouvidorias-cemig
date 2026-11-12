@@ -1389,6 +1389,21 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   // Ficam no repositório privado em anexos/<id do cadastro>/; a lista vai em "arquivos" no cadastro.
   const ANX_MAX = 95 * 1024 * 1024;
   const ANX_VIDEO = 'Vídeo do envio', ANX_OUTRO = 'Outro documento';
+  // vídeos vão para a pasta "Videos Erros Cemig" no Google Drive, com o nome e os dados do cliente
+  const PASTA_VIDEOS_PADRAO = '1D721AOSpAZAo1HW-THfQ_N2w9060qOSk';
+  const pastaVideos = () => (fixos.pastaVideos || PASTA_VIDEOS_PADRAO).replace(/^.*\/folders\/([\w-]+).*$/, '$1');
+  const driveOk = () => !!(G() && G().driveConectado && G().driveConectado());
+  const dataHora = d => `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}h${pad(d.getMinutes())}`;
+  function nomeVideo(r, f){
+    const ext = (f.name.match(/\.[\w]{2,5}$/) || [''])[0];
+    return [r.nome || 'Sem nome', r.instalacao ? 'Inst ' + r.instalacao : '', r.reclamacao ? 'Recl ' + r.reclamacao : '', dataHora(new Date())].filter(Boolean).join(' - ').replace(/[\\/:*?"<>|]+/g, ' ') + ext;
+  }
+  function descricaoVideo(r){
+    const u = (r.tentativas || []).slice(-1)[0];
+    return [`${grupoReg(r) === 'gerador' ? 'Gerador' : 'Cliente'}: ${r.nome || ''}`, r.instalacao && `Instalação: ${r.instalacao}`, r.uc && `UC: ${r.uc}`,
+      `Reclamação ${r.reclamacao || ''}: ${r.motivo || ''}`, r.status === 'pendente' ? `Não enviada — ${u ? u.problema + (u.obs ? ' (' + u.obs + ')' : '') : 'problema no site'}` : (r.protocolo ? `Protocolo: ${r.protocolo}` : ''),
+      `Vídeo enviado por ${quem()} em ${new Date().toLocaleString('pt-BR')} pela plataforma (Ouvidorias Cemig).`].filter(Boolean).join('\n');
+  }
   let anxPend = {}; // documento → [File] escolhidos no gerador, enviados ao registrar
   const tam = b => b >= 1048576 ? (b/1048576).toLocaleString('pt-BR',{maximumFractionDigits:1}) + ' MB' : Math.max(1, Math.round(b/1024)) + ' KB';
   const nomeSeguro = n => String(n).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^\w.\-]+/g,'_').slice(-80);
@@ -1412,14 +1427,22 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     box.innerHTML = `<h4>Documentos e vídeo desta ouvidoria <small>vão junto com o cadastro (até 95 MB cada)</small></h4>` + slots.map((sl, i) => {
       const novos = anxPend[sl] || [], antigos = ja.filter(a => a.documento === sl);
       const video = sl === ANX_VIDEO;
+      const semDrive = video && !driveOk();
       return `<div class="anx-slot ${video ? 'video' : ''} ${video && erro ? 'destaque' : ''}">
-        <span class="n">${video ? '🎥 ' : '📄 '}${esc(sl)}${video && erro ? ' <small style="font-weight:400">— grave a tela mostrando o erro, serve de prova</small>' : ''}</span>
-        <button class="anx-btn" type="button" data-anx="${i}">${video ? 'Anexar vídeo' : 'Anexar'}</button>
+        <span class="n">${video ? '🎥 ' : '📄 '}${esc(sl)}${video && erro ? ' <small style="font-weight:400">— grave a tela mostrando o erro, serve de prova</small>' : ''}${video ? '<br><small style="font-weight:400;color:var(--muted)">Vai para a pasta <b>Videos Erros Cemig</b> no Google Drive, com o nome e os dados do cliente.</small>' : ''}</span>
+        ${semDrive ? `<button class="anx-btn" type="button" data-drive="1">Conectar Google Drive</button>` : `<button class="anx-btn" type="button" data-anx="${i}">${video ? 'Anexar vídeo' : 'Anexar'}</button>`}
         ${novos.length || antigos.length ? `<div class="lista">${antigos.map(a => `<span class="anx-file" title="Já anexado"><span>✓ ${esc(a.nome)}</span></span>`).join('')}${novos.map((f, j) => `<span class="anx-file"><span>${esc(f.name)} · ${tam(f.size)}</span><button type="button" title="Tirar" data-tira="${i}:${j}">✕</button></span>`).join('')}</div>` : ''}
       </div>`;
     }).join('') + `<div class="anx-prog" id="anxProg"></div>`;
+    box.querySelectorAll('[data-drive]').forEach(b => b.onclick = conectarDrive);
     box.querySelectorAll('[data-anx]').forEach(b => b.onclick = () => { const sl = slots[+b.dataset.anx]; anxEscolher(sl, fs => { anxPend[sl] = (anxPend[sl] || []).concat(fs); desenharAnexos(); }); });
     box.querySelectorAll('[data-tira]').forEach(b => b.onclick = () => { const [i, j] = b.dataset.tira.split(':').map(Number); anxPend[slots[i]].splice(j, 1); desenharAnexos(); });
+  }
+  async function conectarDrive(){
+    if(!G() || !G().conectarDrive){ toast('Abra pela plataforma para usar o Google Drive.'); return; }
+    try{ await G().conectarDrive(); toast('Google Drive conectado ✓'); }
+    catch(e){ toast('O login do Google não foi concluído.'); }
+    desenharAnexos(); if(dadosId && $('modalDados').classList.contains('open')) abrirDados(dadosId);
   }
   // envia um arquivo grande ao repositório (blob + commit), com nova tentativa se outra pessoa gravou ao mesmo tempo
   async function subirArquivo(caminho, file, msg){
@@ -1444,6 +1467,13 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     for(let i = 0; i < itens.length; i++){
       const [documento, f] = itens[i];
       avisar && avisar(`Enviando anexo ${i + 1} de ${itens.length}: ${f.name} (${tam(f.size)})…`);
+      if(documento === ANX_VIDEO){
+        const r = registros.find(x => x.id === id) || {};
+        const nome = nomeVideo(r, f);
+        const j = await G().enviarDrive(pastaVideos(), nome, f, descricaoVideo(r), fr => avisar && avisar(`Enviando o vídeo para o Drive: ${Math.round(fr * 100)}%`));
+        metas.push({documento, nome, original: f.name, drive: true, driveId: j.id || '', link: j.webViewLink || (j.id ? `https://drive.google.com/file/d/${j.id}/view` : ''), tamanho: f.size, tipo: f.type || '', enviadoPor: quem(), em: new Date().toISOString()});
+        continue;
+      }
       const caminho = `anexos/${id}/${Date.now().toString(36)}-${nomeSeguro(f.name)}`;
       await subirArquivo(caminho, f, `Anexo da ouvidoria ${id.slice(0,8)}: ${documento} (${quem()})`);
       metas.push({documento, nome: f.name, caminho, tamanho: f.size, tipo: f.type || '', enviadoPor: quem(), em: new Date().toISOString()});
@@ -1468,6 +1498,10 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }catch(e){ toast('Não consegui baixar o arquivo agora. Tente de novo.'); }
   }
   async function excluirArquivo(id, a){
+    if(a.drive){
+      try{ if(a.driveId && G()) await G().lixeiraDrive(a.driveId); }catch(e){ /* sem permissão no Drive: tira só da lista */ }
+      return alterar(l => l.map(r => r.id === id ? Object.assign({}, r, {arquivos: (r.arquivos || []).filter(x => x.driveId !== a.driveId || x.em !== a.em)}) : r), `Tira vídeo da ouvidoria ${id.slice(0,8)} (${quem()})`);
+    }
     const api = `https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${a.caminho.split('/').map(encodeURIComponent).join('/')}`;
     const m = await ghFetch(`${api}?ref=${CFG.branch}&t=${Date.now()}`);
     if(m.ok){ const j = await m.json(); await ghFetch(api, {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({message: `Exclui anexo ${a.nome} (${quem()})`, sha: j.sha, branch: CFG.branch})}); }
@@ -1566,10 +1600,13 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   async function subirPendentesDoGerador(id){
     const qtd = Object.values(anxPend).reduce((n, l) => n + l.length, 0);
     if(!qtd) return;
+    if((anxPend[ANX_VIDEO] || []).length && !driveOk()){
+      try{ await G().conectarDrive(); }catch(e){ /* sem Drive: o vídeo fica para anexar pelo 📋 */ }
+    }
     const porDoc = anxPend; anxPend = {};
     $('btnRegistrar').disabled = true;
     try{ await anexarNoCadastro(id, porDoc, m => { const p = $('anxProg'); if(p) p.textContent = m; toast(m); }); toast(`${qtd} anexo${qtd>1?'s':''} salvo${qtd>1?'s':''} no cadastro ✓`); }
-    catch(e){ anxPend = porDoc; toast('O cadastro foi salvo, mas os anexos não subiram. Abra o 📋 do cadastro e anexe de novo.'); }
+    catch(e){ anxPend = {}; toast((e && e.message ? e.message + ' ' : '') + 'O cadastro foi salvo, mas algum anexo não subiu. Abra o 📋 do cadastro e anexe de novo.'); }
     finally{ $('btnRegistrar').disabled = false; desenharAnexos(); }
   }
 
@@ -1628,8 +1665,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }
     const arqs = r.arquivos || [], docs = slotsDe((e && e.anexos) || []);
     $('dCorpo').insertAdjacentHTML('beforeend', `<h4>Arquivos anexados</h4>
-      ${arqs.length ? `<div style="display:flex;flex-direction:column;gap:6px">${arqs.map((a, i) => `<div class="anx-file dados-arq" style="border-radius:10px;justify-content:space-between;padding:6px 8px 6px 12px"><span>${a.documento === ANX_VIDEO ? '🎥' : '📄'} <b>${esc(a.documento)}</b> · ${esc(a.nome)} · ${tam(a.tamanho || 0)} <small style="color:var(--muted)">(${esc(a.enviadoPor || '')}, ${esc(fmtData((a.em||'').slice(0,10)))})</small></span><span style="display:flex;gap:4px">${/^(video|image)\/|pdf/.test(a.tipo||'') ? `<button class="anx-btn" type="button" data-ver="${i}">Ver</button>` : ''}<button class="anx-btn" type="button" data-baixa="${i}">Baixar</button>${podeEscrever ? `<button class="anx-btn" type="button" data-tiraarq="${i}" title="Excluir arquivo">✕</button>` : ''}</span></div>`).join('')}</div>` : '<p class="sub" style="margin:0">Nenhum arquivo anexado ainda.</p>'}
-      ${podeEscrever ? `<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><select id="dDoc" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit">${docs.map(d => `<option>${esc(d)}</option>`).join('')}</select><button class="anx-btn" type="button" id="dAnexar">Anexar arquivo</button><span class="anx-prog" id="dProg"></span></div>` : ''}`);
+      ${arqs.length ? `<div style="display:flex;flex-direction:column;gap:6px">${arqs.map((a, i) => `<div class="anx-file dados-arq" style="border-radius:10px;justify-content:space-between;padding:6px 8px 6px 12px"><span>${a.documento === ANX_VIDEO ? '🎥' : '📄'} <b>${esc(a.documento)}</b> · ${esc(a.nome)} · ${tam(a.tamanho || 0)} <small style="color:var(--muted)">(${a.drive ? 'no Google Drive, ' : ''}${esc(a.enviadoPor || '')}, ${esc(fmtData((a.em||'').slice(0,10)))})</small></span><span style="display:flex;gap:4px">${a.drive ? `<a class="anx-btn" href="${esc(a.link)}" target="_blank" rel="noopener" style="text-decoration:none">Abrir no Drive</a>` : `${/^(video|image)\/|pdf/.test(a.tipo||'') ? `<button class="anx-btn" type="button" data-ver="${i}">Ver</button>` : ''}<button class="anx-btn" type="button" data-baixa="${i}">Baixar</button>`}${podeEscrever ? `<button class="anx-btn" type="button" data-tiraarq="${i}" title="Excluir arquivo">✕</button>` : ''}</span></div>`).join('')}</div>` : '<p class="sub" style="margin:0">Nenhum arquivo anexado ainda.</p>'}
+      ${podeEscrever ? `<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><select id="dDoc" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit">${docs.map(d => `<option>${esc(d)}</option>`).join('')}</select><button class="anx-btn" type="button" id="dAnexar">Anexar arquivo</button>${driveOk() ? '' : '<button class="anx-btn" type="button" id="dDrive" title="Necessário para anexar vídeos">Conectar Google Drive</button>'}<span class="anx-prog" id="dProg"></span></div>` : ''}`);
+    if($('dDrive')) $('dDrive').onclick = conectarDrive;
     $('dCorpo').querySelectorAll('[data-baixa]').forEach(b => b.onclick = () => baixarArquivo(arqs[+b.dataset.baixa], false));
     $('dCorpo').querySelectorAll('[data-ver]').forEach(b => b.onclick = () => baixarArquivo(arqs[+b.dataset.ver], true));
     $('dCorpo').querySelectorAll('[data-tiraarq]').forEach(b => b.onclick = async () => {
@@ -1640,6 +1678,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     });
     if($('dAnexar')) $('dAnexar').onclick = () => {
       const documento = $('dDoc').value;
+      if(documento === ANX_VIDEO && !driveOk()){ toast('Para anexar vídeo, clique primeiro em Conectar Google Drive.'); return; }
       anxEscolher(documento, async fs => {
         if(!fs.length) return;
         $('dAnexar').disabled = true;
