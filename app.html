@@ -175,6 +175,15 @@
   .anx-slot:first-of-type{border-top:0}
   .anx-slot .n{font-size:13px}
   .anx-slot.video .n{font-weight:600}
+  .anx-salvos{background:#f3f7f4;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:8px 0 10px;display:flex;flex-direction:column;gap:6px}
+  .anx-salvos .t{font-weight:700;font-size:13.5px}
+  .anx-salvos .t small{font-weight:400;color:var(--muted);margin-left:4px}
+  .anx-salvos .anx-file{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;border-radius:8px;padding:5px 6px 5px 10px;max-width:none;width:100%;box-sizing:border-box;overflow:visible}
+  .anx-salvos .anx-file > span:first-child{flex:1 1 200px;min-width:0;word-break:break-word;white-space:normal}
+  .anx-salvos .anx-file > span:last-child{flex:none}
+  .anx-salvos .anx-file span{max-width:none;overflow:visible;text-overflow:clip}
+  .anx-foco{animation:anxfoco 2.4s ease-out}
+  @keyframes anxfoco{0%,35%{box-shadow:0 0 0 3px var(--accent)}100%{box-shadow:0 0 0 0 transparent}}
   .anx-falha{background:#fdecea;color:#7a1f16;border-radius:10px;padding:10px 12px;margin:14px 0 4px;font-size:13.5px}
   .anx-falha ul{margin:6px 0 8px;padding-left:18px}
   .anx-falha small{display:block;margin-top:6px;color:#8a4b44}
@@ -546,8 +555,7 @@
   const fmtMes = s => { if(!s) return ''; const [y,m] = s.split('-'); return `${MESES[+m-1]}/${y}`; };
   const listaE = s => {
     const a = (s||'').split(/[,;\n]+/).map(x=>x.trim()).filter(Boolean);
-    if(a.length <= 1) return a.join('');
-    return a.slice(0,-1).join(', ') + ' e ' + a[a.length-1];
+    return a.join(', ');
   };
   const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
   const addDiasUteis = (dt, n) => { const d = new Date(dt); let c = 0; while(c < n){ d.setDate(d.getDate()+1); const w = d.getDay(); if(w!==0 && w!==6) c++; } return d; };
@@ -780,7 +788,7 @@ Diante disso, solicito esclarecimentos sobre o motivo do atraso e peço que a fa
       quando:'<b>30 dias antes</b> do fim do prazo de 60 dias úteis, se o cadastro ainda não foi confirmado.',
       campos:[F_NOME_CLI, F_END_CLI, F_INST_CLI, F_UC_CLI,
         {k:'protocolo', label:'Protocolo por anexo Cemig da usina do cliente', ph:'Usado no campo de 1º nível', help:'“Protocolo por anexo Cemig” da usina à qual o cliente foi conectado.'},
-        {k:'protocolos', label:'Protocolos de cadastro citados no relato', ph:'Ex.: 123456, 234567, 345678', help:'Separe por vírgula. A página junta com “e” no final.'},
+        {k:'protocolos', label:'Protocolos de cadastro citados no relato', ph:'Ex.: 123456, 234567, 345678', help:'Separe por vírgula.'},
         {k:'dataAss', label:'Data de assinatura do contrato', opt:true, tipo:'date', calc:'60uteis'},
         F_PF],
       reg:regCli,
@@ -808,7 +816,7 @@ Peço que sejam tomadas as providências necessárias para concluir o processo o
       quando:'Sempre que o prazo previsto para o início da injeção já passou e o cliente ainda não recebe os créditos.',
       campos:[F_NOME_CLI, F_END_CLI, F_INST_CLI, F_UC_CLI,
         {k:'protocolo', label:'Protocolo por anexo Cemig da usina do cliente', ph:'Usado no campo de 1º nível', help:'“Protocolo por anexo Cemig” da usina à qual o cliente foi conectado.'},
-        {k:'protocolos', label:'Protocolos de cadastro citados no relato', ph:'Ex.: 123456, 234567, 345678', help:'Separe por vírgula. A página junta com “e” no final.'},
+        {k:'protocolos', label:'Protocolos de cadastro citados no relato', ph:'Ex.: 123456, 234567, 345678', help:'Separe por vírgula.'},
         F_PF],
       reg:regCli,
       protocolo1:v=>M(v.protocolo,'protocolo por anexo'),
@@ -1427,7 +1435,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const pend = pendenteAtual && registros.find(r => r.id === pendenteAtual);
     const ja = (pend && pend.arquivos) || [];
     Object.keys(anxPend).forEach(k => { if(!slots.includes(k)) delete anxPend[k]; });
-    box.innerHTML = `<h4>Documentos e vídeo desta ouvidoria <small>vão junto com o cadastro (até 95 MB cada)</small></h4>` + slots.map((sl, i) => {
+    const salvos = ja.length ? `<div class="anx-salvos"><div class="t">📎 Arquivos já salvos desta ouvidoria (${ja.length}) <small>baixe para anexar de novo no site da Cemig</small></div>${ja.map((a, k) => `<div class="anx-file dados-arq"><span>${a.drive ? '🎥' : '📄'} <b>${esc(a.documento)}</b> · ${esc(a.nome)} · ${tam(a.tamanho || 0)}</span><span style="display:flex;gap:4px">${a.drive ? `<a class="anx-btn" href="${esc(a.link)}" target="_blank" rel="noopener" style="text-decoration:none">Abrir no Drive</a>` : `${/^(video|image)\/|pdf/.test(a.tipo||'') ? `<button class="anx-btn" type="button" data-gver="${k}">Ver</button>` : ''}<button class="anx-btn" type="button" data-gbaixa="${k}">Baixar</button>`}</span></div>`).join('')}${ja.filter(a => !a.drive).length > 1 ? `<button class="anx-btn" type="button" id="gBaixaTodos" style="margin-top:6px">Baixar todos</button>` : ''}</div>` : '';
+    box.innerHTML = `<h4>Documentos e vídeo desta ouvidoria <small>vão junto com o cadastro (até 95 MB cada)</small></h4>` + salvos + slots.map((sl, i) => {
       const novos = anxPend[sl] || [], antigos = ja.filter(a => a.documento === sl);
       const video = sl === ANX_VIDEO;
       const semDrive = video && !driveOk();
@@ -1438,6 +1447,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       </div>`;
     }).join('') + `<div class="anx-prog" id="anxProg"></div>`;
     box.querySelectorAll('[data-drive]').forEach(b => b.onclick = conectarDrive);
+    box.querySelectorAll('[data-gbaixa]').forEach(b => b.onclick = () => baixarArquivo(ja[+b.dataset.gbaixa], false));
+    box.querySelectorAll('[data-gver]').forEach(b => b.onclick = () => baixarArquivo(ja[+b.dataset.gver], true));
+    if($('gBaixaTodos')) $('gBaixaTodos').onclick = async () => { for(const a of ja.filter(x => !x.drive)){ await baixarArquivo(a, false); await new Promise(z => setTimeout(z, 600)); } };
     box.querySelectorAll('[data-anx]').forEach(b => b.onclick = () => { const sl = slots[+b.dataset.anx]; anxEscolher(sl, fs => { anxPend[sl] = (anxPend[sl] || []).concat(fs); desenharAnexos(); }); });
     box.querySelectorAll('[data-tira]').forEach(b => b.onclick = () => { const [i, j] = b.dataset.tira.split(':').map(Number); anxPend[slots[i]].splice(j, 1); desenharAnexos(); });
   }
@@ -1734,7 +1746,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     atual = t.id; store.set('ouv_tipo', atual);
     valores[atual] = JSON.parse(JSON.stringify(r.envio.valores || {pessoa:'PF'})); checks[atual] = new Set(); salvarLocal();
     pendenteAtual = r.id; store.set('ouv_pend', r.id); resultado = 'ok';
+    anxPend = {};
+    (anxFalhas[r.id] || []).forEach(x => { (anxPend[x.documento] = anxPend[x.documento] || []).push(x.file); });
+    delete anxFalhas[r.id];
     fecharModais(); irPara('gerar'); renderGerador(); desenharResultado();
+    setTimeout(() => { const box = $('anxBox'); if(box){ box.scrollIntoView({block:'center', behavior:'smooth'}); box.classList.add('anx-foco'); setTimeout(() => box.classList.remove('anx-foco'), 2500); } }, 350);
     toast('Dados carregados. Tente enviar no site da Cemig.');
   };
   $('dExcluir').onclick = () => {
