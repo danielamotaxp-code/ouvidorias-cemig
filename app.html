@@ -175,6 +175,9 @@
   .anx-slot:first-of-type{border-top:0}
   .anx-slot .n{font-size:13px}
   .anx-slot.video .n{font-weight:600}
+  .anx-falha{background:#fdecea;color:#7a1f16;border-radius:10px;padding:10px 12px;margin:14px 0 4px;font-size:13.5px}
+  .anx-falha ul{margin:6px 0 8px;padding-left:18px}
+  .anx-falha small{display:block;margin-top:6px;color:#8a4b44}
   .anx-slot.video.destaque{background:#fff4e6;border-radius:8px;padding:6px 8px;border-top:0;margin:4px 0}
   .anx-slot .lista{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}
   .anx-file{display:inline-flex;align-items:center;gap:6px;background:#eef3ef;border:1px solid #d5e2d9;border-radius:999px;padding:2px 4px 2px 10px;font-size:12.5px;max-width:100%}
@@ -1462,12 +1465,23 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }
     throw {status: 409};
   }
+  function motivoFalha(e, video){
+    if(video && (!G() || !G().enviarDrive)) return 'a plataforma está desatualizada. Clique em Atualizar no alto da tela e conecte o Google Drive.';
+    if(video && !driveOk()) return 'o Google Drive não está conectado. Clique em Conectar Google Drive.';
+    if(e && e.message) return e.message;
+    if(e && (e.status === 401 || e.status === 403)) return 'sem permissão para salvar no registro.';
+    if(e && (e.status === 413 || e.status === 422)) return 'arquivo grande demais para o registro.';
+    return 'falha de conexão durante o envio.';
+  }
   async function enviarAnexos(id, porDoc, avisar){
-    const metas = [], itens = Object.entries(porDoc).flatMap(([d, fs]) => fs.map(f => [d, f]));
+    const metas = [], falhas = [], itens = Object.entries(porDoc).flatMap(([d, fs]) => fs.map(f => [d, f]));
     for(let i = 0; i < itens.length; i++){
       const [documento, f] = itens[i];
+      const ehVideo = documento === ANX_VIDEO;
       avisar && avisar(`Enviando anexo ${i + 1} de ${itens.length}: ${f.name} (${tam(f.size)})…`);
-      if(documento === ANX_VIDEO){
+      try{
+      if(ehVideo){
+        if(!G() || !G().enviarDrive) throw new Error(motivoFalha(null, true));
         const r = registros.find(x => x.id === id) || {};
         const nome = nomeVideo(r, f);
         const j = await G().enviarDrive(pastaVideos(), nome, f, descricaoVideo(r), fr => avisar && avisar(`Enviando o vídeo para o Drive: ${Math.round(fr * 100)}%`));
@@ -1477,15 +1491,23 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       const caminho = `anexos/${id}/${Date.now().toString(36)}-${nomeSeguro(f.name)}`;
       await subirArquivo(caminho, f, `Anexo da ouvidoria ${id.slice(0,8)}: ${documento} (${quem()})`);
       metas.push({documento, nome: f.name, caminho, tamanho: f.size, tipo: f.type || '', enviadoPor: quem(), em: new Date().toISOString()});
+      }catch(e){ falhas.push({documento, file: f, motivo: motivoFalha(e, ehVideo)}); }
     }
-    return metas;
+    return {metas, falhas};
   }
+  // arquivos que não subiram, por cadastro (ficam guardados enquanto a página estiver aberta)
+  const anxFalhas = {};
   // grava os anexos e acrescenta na lista do cadastro (relendo o cadastro, para não apagar nada de ninguém)
   async function anexarNoCadastro(id, porDoc, avisar){
-    const metas = await enviarAnexos(id, porDoc, avisar);
-    if(metas.length) await alterar(l => l.map(r => r.id === id ? Object.assign({}, r, {arquivos: (r.arquivos || []).concat(metas)}) : r), `Anexos da ouvidoria ${id.slice(0,8)} (${quem()})`);
-    return metas.length;
+    const {metas, falhas} = await enviarAnexos(id, porDoc, avisar);
+    if(metas.length){
+      try{ await alterar(l => l.map(r => r.id === id ? Object.assign({}, r, {arquivos: (r.arquivos || []).concat(metas)}) : r), `Anexos da ouvidoria ${id.slice(0,8)} (${quem()})`); }
+      catch(e){ throw new Error('Os arquivos subiram, mas não consegui ligá-los ao cadastro. Tente de novo.'); }
+    }
+    if(falhas.length) anxFalhas[id] = (anxFalhas[id] || []).concat(falhas); else if(anxFalhas[id] && !anxFalhas[id].length) delete anxFalhas[id];
+    return {ok: metas.length, falhas: falhas.length};
   }
+  function porDocDe(lista){ const p = {}; lista.forEach(x => { (p[x.documento] = p[x.documento] || []).push(x.file); }); return p; }
   async function baixarArquivo(a, abrir){
     try{
       toast('Baixando ' + a.nome + '…');
@@ -1584,7 +1606,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('btnRegistrar').disabled = false;
     if(!ref) return;
     pendenteAtual = null; store.set('ouv_pend', null); statusAtual = 'enviada';
-    await subirPendentesDoGerador(ref.id);
+    const falhouAnx = await subirPendentesDoGerador(ref.id);
     // limpa para a próxima ouvidoria
     valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal();
     $('s_protocolo').value = ''; $('s_ret').checked = false; $('s_data').value = isoHoje();
@@ -1593,21 +1615,26 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     destacar = ref && ref.id ? ref.id : null;
     grupoAtual = doc.grupo; filtroRet = ''; $('fBusca').value = ''; $('fMes').value = '';
     irPara('registro');
-    toast(doc.tentativas && doc.tentativas.length ? 'Ouvidoria enviada ✓ Saiu de Não enviadas' : 'Ouvidoria registrada ✓');
+    if(!avisarFalhas(ref.id, falhouAnx)) toast(doc.tentativas && doc.tentativas.length ? 'Ouvidoria enviada ✓ Saiu de Não enviadas' : 'Ouvidoria registrada ✓');
     agendarGoogle(); desenharResultado();
   };
 
+  // devolve quantos arquivos NÃO subiram (eles ficam no 📋 do cadastro para tentar de novo)
   async function subirPendentesDoGerador(id){
     const qtd = Object.values(anxPend).reduce((n, l) => n + l.length, 0);
-    if(!qtd) return;
-    if((anxPend[ANX_VIDEO] || []).length && !driveOk()){
-      try{ await G().conectarDrive(); }catch(e){ /* sem Drive: o vídeo fica para anexar pelo 📋 */ }
-    }
+    if(!qtd) return 0;
     const porDoc = anxPend; anxPend = {};
     $('btnRegistrar').disabled = true;
-    try{ await anexarNoCadastro(id, porDoc, m => { const p = $('anxProg'); if(p) p.textContent = m; toast(m); }); toast(`${qtd} anexo${qtd>1?'s':''} salvo${qtd>1?'s':''} no cadastro ✓`); }
-    catch(e){ anxPend = {}; toast((e && e.message ? e.message + ' ' : '') + 'O cadastro foi salvo, mas algum anexo não subiu. Abra o 📋 do cadastro e anexe de novo.'); }
+    let falhou = 0;
+    try{ const res = await anexarNoCadastro(id, porDoc, m => { const p = $('anxProg'); if(p) p.textContent = m; toast(m); }); falhou = res.falhas; }
+    catch(e){ anxFalhas[id] = Object.entries(porDoc).flatMap(([d, fs]) => fs.map(f => ({documento: d, file: f, motivo: (e && e.message) || 'falha ao salvar.'}))); falhou = qtd; }
     finally{ $('btnRegistrar').disabled = false; desenharAnexos(); }
+    return falhou;
+  }
+  function avisarFalhas(id, falhou){
+    if(!falhou) return false;
+    setTimeout(() => { abrirDados(id); setTimeout(() => { const el = document.querySelector('#modalDados .anx-falha'); if(el) el.scrollIntoView({block:'center', behavior:'smooth'}); }, 150); toast(`${falhou} arquivo${falhou>1?'s não foram salvos':' não foi salvo'}. Veja o motivo e tente de novo.`); }, 300);
+    return true;
   }
 
   // deu problema no site da Cemig: guarda tudo para outra pessoa tentar de novo
@@ -1633,14 +1660,14 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const ref = pend ? await gravar(() => col.doc(pend.id).set(doc).then(() => ({id: pend.id}))) : await gravar(() => col.add(doc));
     $('btnRegistrar').disabled = false;
     if(!ref) return;
-    await subirPendentesDoGerador(ref.id);
+    const falhouAnx = await subirPendentesDoGerador(ref.id);
     valores[atual] = {pessoa:'PF'}; checks[atual] = new Set(); salvarLocal();
     $('s_prob').value = ''; $('s_pobs').value = ''; $('s_data').value = isoHoje();
     pendenteAtual = null; store.set('ouv_pend', null); resultado = 'ok';
     renderForm(); renderResult(); limparAviso(); desenharResultado();
     destacar = ref.id; grupoAtual = doc.grupo; statusAtual = 'pendente'; filtroRet = ''; $('fBusca').value = ''; $('fMes').value = '';
     irPara('registro');
-    toast('Salva em Não enviadas. Outra pessoa pode tentar de novo.');
+    if(!avisarFalhas(ref.id, falhouAnx)) toast('Salva em Não enviadas. Outra pessoa pode tentar de novo.');
     agendarGoogle();
   }
 
@@ -1664,10 +1691,21 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       $('dCopRel').onclick = () => copiar(e.relato, $('dCopRel'), 'Relato copiado');
     }
     const arqs = r.arquivos || [], docs = slotsDe((e && e.anexos) || []);
-    $('dCorpo').insertAdjacentHTML('beforeend', `<h4>Arquivos anexados</h4>
+    const falhas = anxFalhas[r.id] || [];
+    $('dCorpo').insertAdjacentHTML('beforeend', `${falhas.length ? `<div class="anx-falha"><b>⚠ ${falhas.length} arquivo${falhas.length>1?'s não foram salvos':' não foi salvo'}</b><ul>${falhas.map(x => `<li>${x.documento === ANX_VIDEO ? '🎥' : '📄'} <b>${esc(x.file.name)}</b> (${esc(x.documento)}): ${esc(x.motivo)}</li>`).join('')}</ul><div style="display:flex;gap:8px;flex-wrap:wrap">${podeEscrever ? '<button class="anx-btn" type="button" id="dTentaAnx">Tentar salvar de novo</button>' : ''}<button class="anx-btn" type="button" id="dDescAnx">Descartar</button></div><small>Os arquivos ficam guardados só enquanto esta página estiver aberta.</small></div>` : ''}<h4>Arquivos anexados</h4>
       ${arqs.length ? `<div style="display:flex;flex-direction:column;gap:6px">${arqs.map((a, i) => `<div class="anx-file dados-arq" style="border-radius:10px;justify-content:space-between;padding:6px 8px 6px 12px"><span>${a.documento === ANX_VIDEO ? '🎥' : '📄'} <b>${esc(a.documento)}</b> · ${esc(a.nome)} · ${tam(a.tamanho || 0)} <small style="color:var(--muted)">(${a.drive ? 'no Google Drive, ' : ''}${esc(a.enviadoPor || '')}, ${esc(fmtData((a.em||'').slice(0,10)))})</small></span><span style="display:flex;gap:4px">${a.drive ? `<a class="anx-btn" href="${esc(a.link)}" target="_blank" rel="noopener" style="text-decoration:none">Abrir no Drive</a>` : `${/^(video|image)\/|pdf/.test(a.tipo||'') ? `<button class="anx-btn" type="button" data-ver="${i}">Ver</button>` : ''}<button class="anx-btn" type="button" data-baixa="${i}">Baixar</button>`}${podeEscrever ? `<button class="anx-btn" type="button" data-tiraarq="${i}" title="Excluir arquivo">✕</button>` : ''}</span></div>`).join('')}</div>` : '<p class="sub" style="margin:0">Nenhum arquivo anexado ainda.</p>'}
       ${podeEscrever ? `<div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap"><select id="dDoc" style="padding:6px 8px;border:1px solid var(--line);border-radius:8px;font:inherit">${docs.map(d => `<option>${esc(d)}</option>`).join('')}</select><button class="anx-btn" type="button" id="dAnexar">Anexar arquivo</button>${driveOk() ? '' : '<button class="anx-btn" type="button" id="dDrive" title="Necessário para anexar vídeos">Conectar Google Drive</button>'}<span class="anx-prog" id="dProg"></span></div>` : ''}`);
     if($('dDrive')) $('dDrive').onclick = conectarDrive;
+    if($('dDescAnx')) $('dDescAnx').onclick = () => { delete anxFalhas[r.id]; abrirDados(r.id); };
+    if($('dTentaAnx')) $('dTentaAnx').onclick = async () => {
+      const lista = anxFalhas[r.id] || []; if(!lista.length) return;
+      if(lista.some(x => x.documento === ANX_VIDEO) && !driveOk() && G() && G().conectarDrive){ try{ await G().conectarDrive(); }catch(x){ /* segue: o vídeo volta para a lista */ } }
+      delete anxFalhas[r.id];
+      $('dTentaAnx').disabled = true; $('dTentaAnx').textContent = 'Enviando…';
+      try{ const res = await anexarNoCadastro(r.id, porDocDe(lista), m => { const p = $('dProg'); if(p) p.textContent = m; }); toast(res.falhas ? `${res.ok} salvo(s); ${res.falhas} ainda não.` : 'Arquivos salvos ✓'); }
+      catch(x){ anxFalhas[r.id] = lista; toast((x && x.message) || 'Não consegui salvar agora.'); }
+      await atualizarLista(true); abrirDados(r.id);
+    };
     $('dCorpo').querySelectorAll('[data-baixa]').forEach(b => b.onclick = () => baixarArquivo(arqs[+b.dataset.baixa], false));
     $('dCorpo').querySelectorAll('[data-ver]').forEach(b => b.onclick = () => baixarArquivo(arqs[+b.dataset.ver], true));
     $('dCorpo').querySelectorAll('[data-tiraarq]').forEach(b => b.onclick = async () => {
@@ -1682,8 +1720,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       anxEscolher(documento, async fs => {
         if(!fs.length) return;
         $('dAnexar').disabled = true;
-        try{ await anexarNoCadastro(r.id, {[documento]: fs}, m => $('dProg').textContent = m); toast('Anexado ✓'); await atualizarLista(true); abrirDados(r.id); }
-        catch(x){ $('dProg').textContent = 'Não consegui anexar agora. Tente de novo.'; $('dAnexar').disabled = false; }
+        try{ const res = await anexarNoCadastro(r.id, {[documento]: fs}, m => $('dProg').textContent = m); toast(res.falhas ? 'Algum arquivo não foi salvo. Veja o motivo acima.' : 'Anexado ✓'); await atualizarLista(true); abrirDados(r.id); }
+        catch(x){ $('dProg').textContent = (x && x.message) || 'Não consegui anexar agora. Tente de novo.'; $('dAnexar').disabled = false; }
       });
     };
     $('dReenviar').hidden = !pend || !e || !podeEscrever; $('dExcluir').hidden = !pend || !podeEscrever; $('dDel').innerHTML = '';
