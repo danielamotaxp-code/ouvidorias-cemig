@@ -1479,10 +1479,53 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }
     throw {status: 409};
   }
+  // ---- envio do vídeo para o Google Drive feito pela própria página (não depende da versão do portal) ----
+  let tokVid = null, tokVidAte = 0;
+  async function tokenVideo(forcar){
+    if(!forcar && tokVid && Date.now() < tokVidAte) return tokVid;
+    let t;
+    try{ t = await G().conectarDrive(); }catch(e){ throw new Error('O login do Google não foi concluído (se a janela do Google não abriu, libere pop-ups para a plataforma e clique em Tentar salvar de novo).'); }
+    if(!t || typeof t !== 'string') throw new Error('O Google não devolveu a autorização do Drive. Clique em Conectar Google Drive e tente de novo.');
+    tokVid = t; tokVidAte = Date.now() + 50 * 60 * 1000; return t;
+  }
+  function erroDrive(status, m, motivo){
+    const txt = (m || '') + ' ' + (motivo || '');
+    if(/has not been used|is disabled|accessNotConfigured|SERVICE_DISABLED/i.test(txt)) return 'a API do Google Drive não está ativada no projeto do Google Cloud da plataforma. Quem administra o projeto precisa ativar a "Google Drive API".';
+    if(/insufficient.*scope|ACCESS_TOKEN_SCOPE_INSUFFICIENT|insufficientPermissions/i.test(txt)){ tokVid = null; return 'na janela do Google a permissão do Drive não foi marcada. Clique em Tentar salvar de novo e marque a caixa de acesso ao Google Drive.'; }
+    if(status === 401){ tokVid = null; return 'o login do Google expirou. Clique em Tentar salvar de novo.'; }
+    if(status === 404) return 'a pasta de vídeos não foi encontrada ou sua conta Google não tem acesso a ela.';
+    if(/storageQuota|quota/i.test(txt)) return 'o Google Drive está sem espaço.';
+    return `o Google Drive recusou o envio (${status}${m ? ': ' + m : ''}).`;
+  }
+  async function subirVideoDrive(pasta, nome, arquivo, descricao, andamento){
+    let t = await tokenVideo();
+    const iniciar = tk => fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,name,webViewLink', {
+      method: 'POST',
+      headers: {Authorization: 'Bearer ' + tk, 'Content-Type': 'application/json; charset=UTF-8', 'X-Upload-Content-Type': arquivo.type || 'application/octet-stream', 'X-Upload-Content-Length': String(arquivo.size)},
+      body: JSON.stringify({name: nome, parents: [pasta], description: descricao || ''})
+    });
+    let ini = await iniciar(t);
+    if(ini.status === 401){ t = await tokenVideo(true); ini = await iniciar(t); }
+    if(!ini.ok){
+      let m = '', motivo = '';
+      try{ const er = (await ini.json()).error || {}; m = er.message || ''; motivo = ((er.errors || [])[0] || {}).reason || ''; }catch(e){}
+      console.warn('[Ouvidorias] Google Drive recusou:', ini.status, m, motivo);
+      throw new Error(erroDrive(ini.status, m, motivo));
+    }
+    const destino = ini.headers.get('Location');
+    if(!destino) throw new Error('o Google Drive não liberou o envio.');
+    return new Promise((ok, falha) => {
+      const x = new XMLHttpRequest(); x.open('PUT', destino);
+      x.upload.onprogress = e => { if(andamento && e.lengthComputable) andamento(e.loaded / e.total); };
+      x.onload = () => { if(x.status >= 200 && x.status < 300){ try{ ok(JSON.parse(x.responseText)); }catch(e){ ok({}); } } else falha(new Error(`o envio para o Google Drive foi interrompido (${x.status}).`)); };
+      x.onerror = () => falha(new Error('sem conexão durante o envio para o Google Drive.'));
+      x.send(arquivo);
+    });
+  }
   function motivoFalha(e, video){
-    if(video && (!G() || !G().enviarDrive)) return 'a plataforma está desatualizada. Clique em Atualizar no alto da tela e conecte o Google Drive.';
-    if(video && !driveOk()) return 'o Google Drive não está conectado. Clique em Conectar Google Drive.';
+    if(video && (!G() || !G().conectarDrive)) return 'a plataforma está desatualizada. Clique em Atualizar no alto da tela e conecte o Google Drive.';
     if(e && e.message) return e.message;
+    if(video && !driveOk()) return 'o Google Drive não está conectado. Clique em Conectar Google Drive.';
     if(e && (e.status === 401 || e.status === 403)) return 'sem permissão para salvar no registro.';
     if(e && (e.status === 413 || e.status === 422)) return 'arquivo grande demais para o registro.';
     return 'falha de conexão durante o envio.';
@@ -1495,10 +1538,10 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       avisar && avisar(`Enviando anexo ${i + 1} de ${itens.length}: ${f.name} (${tam(f.size)})…`);
       try{
       if(ehVideo){
-        if(!G() || !G().enviarDrive) throw new Error(motivoFalha(null, true));
+        if(!G() || !G().conectarDrive) throw new Error(motivoFalha(null, true));
         const r = registros.find(x => x.id === id) || {};
         const nome = nomeVideo(r, f);
-        const j = await G().enviarDrive(pastaVideos(), nome, f, descricaoVideo(r), fr => avisar && avisar(`Enviando o vídeo para o Drive: ${Math.round(fr * 100)}%`));
+        const j = await subirVideoDrive(pastaVideos(), nome, f, descricaoVideo(r), fr => avisar && avisar(`Enviando o vídeo para o Drive: ${Math.round(fr * 100)}%`));
         metas.push({documento, nome, original: f.name, drive: true, driveId: j.id || '', link: j.webViewLink || (j.id ? `https://drive.google.com/file/d/${j.id}/view` : ''), tamanho: f.size, tipo: f.type || '', enviadoPor: quem(), em: new Date().toISOString()});
         continue;
       }
