@@ -1386,7 +1386,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     try{ token = sessionStorage.getItem('ouv_tok') || null; }catch(e){ token = null; }
     dbStatus = token ? 'loading' : 'setup';
     setBanner(); renderRegistro();
-    if(token){ carregarDadosFixos(); carregarTipos(); await atualizarLista(); iniciarPolling(); desenharResultado(); aplicarPrefill(); }
+    if(token){ carregarDadosFixos(); carregarTipos(); await atualizarLista(); iniciarPolling(); desenharResultado(); aplicarPrefill(); abrirDoLink(); }
   }
 
   function erroEscrita(e){
@@ -2199,6 +2199,17 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     toast(`Dados de ${p.valores.nomeCliente || 'cliente'} carregados da lista de ouvidorias de ${p.lista || ''}. Complete o endereço e confira.`);
   }
   window.addEventListener('storage', e => { if(e.key === 'ouv_prefill' && e.newValue && token) aplicarPrefill(); });
+  // link "Abrir ouvidoria" da planilha de ouvidorias das faturas: #ouvidorias/cad/<id do cadastro> abre o 📋 do cadastro
+  function abrirDoLink(){
+    let h = ''; try{ h = window.top.location.hash; }catch(e){ h = location.hash; }
+    const m = String(h).match(/^#ouvidorias\/cad\/([\w-]+)/); if(!m) return;
+    const r = registros.find(x => x.id === m[1]);
+    try{ window.top.history.replaceState(null, '', '#ouvidorias'); }catch(e){}
+    if(!r){ toast('Não achei essa ouvidoria no registro (pode ter sido excluída).'); return; }
+    grupoAtual = grupoReg(r); statusAtual = 'todos'; filtroRet = ''; destacar = r.id;
+    irPara('registro'); renderRegistro(); abrirDados(r.id);
+  }
+  try{ window.top.addEventListener('hashchange', () => { if(token) abrirDoLink(); }); }catch(e){}
   window.addEventListener('focus', () => { if(token) aplicarPrefill(); });
 
   // ================= LOGIN =================
