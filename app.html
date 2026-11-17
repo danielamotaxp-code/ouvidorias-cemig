@@ -1723,6 +1723,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     irPara('registro');
     if(!avisarFalhas(ref.id, falhouAnx)) toast(doc.tentativas && doc.tentativas.length ? 'Ouvidoria enviada ✓ Saiu de Não enviadas' : 'Ouvidoria registrada ✓');
     agendarGoogle(); desenharResultado();
+    atualizarListaFaturas(Object.assign({id: ref.id}, doc));
   };
 
   // devolve quantos arquivos NÃO subiram (eles ficam no 📋 do cadastro para tentar de novo)
@@ -1775,6 +1776,52 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     irPara('registro');
     if(!avisarFalhas(ref.id, falhouAnx)) toast('Salva em Não enviadas. Outra pessoa pode tentar de novo.');
     agendarGoogle();
+    atualizarListaFaturas(Object.assign({id: ref.id}, doc));
+  }
+
+  // ---------- planilha de ouvidorias das faturas (Faturas e Contratos → aba Ouvidorias) ----------
+  // Ao registrar a Reclamação 6, a linha do cliente na aba com a data (a que já existe) é atualizada na hora:
+  // Colaborador (se vazio), situação, protocolo, data, link "Abrir ouvidoria" e linha verde (ou laranja se não foi enviada).
+  const PORTAL_CAD = 'https://danielamotaxp-code.github.io/central-atendimento/#ouvidorias/cad/';
+  async function atualizarListaFaturas(r){
+    try{
+      if(+r.reclamacao !== 6 || !G() || !G().conectado || !G().conectado()) return;
+      const k = String(r.instalacao || '').replace(/\D/g, '').replace(/^0+/, ''); if(!k) return;
+      const resp = await ghFetch(`https://api.github.com/repos/${CFG.owner}/faturas-contratos-acessos/contents/dados/ouvidorias.json?t=${Date.now()}`);
+      if(!resp.ok) return;
+      const d = JSON.parse(b64dec((await resp.json()).content || '') || '{}');
+      const pid = (String(d.planilha || '').match(/\/d\/([\w-]+)/) || [])[1]; if(!pid) return;
+      const hoje = isoHoje();
+      const menos3 = iso => { const x = new Date(iso + 'T12:00:00'); x.setDate(x.getDate() - 3); return x.toISOString().slice(0, 10); };
+      // listas (abas) que têm esse cliente, da mais nova para a mais antiga
+      const listas = (d.listas || []).filter(l => l.aba && menos3(l.dataISO) <= hoje).sort((a, b) => String(b.dataISO).localeCompare(String(a.dataISO)));
+      const g = G();
+      for(const l of listas){
+        const m = await g.ler(pid, `'${l.aba.replace(/'/g, "''")}'`);
+        const norm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+        const hl = m.findIndex(row => (row || []).some(h => norm(h) === 'instalacao')); if(hl < 0) continue;
+        const cab = m[hl].map(norm), ci = cab.indexOf('instalacao'), cc = cab.indexOf('colaborador');
+        const cs = ['ouvidoria', 'protocolo da ouvidoria', 'data da ouvidoria', 'ouvidoria na plataforma'].map(h => cab.indexOf(h));
+        const j = m.findIndex((row, i) => i > hl && String((row || [])[ci] || '').replace(/\D/g, '').replace(/^0+/, '') === k);
+        if(j < 0) continue;
+        let sheetId = l.gid;
+        if(sheetId == null){ const meta = await g.planilha(pid); const f = (meta.sheets || []).find(x => x.properties.title === l.aba); if(!f) continue; sheetId = f.properties.sheetId; }
+        const pend = r.status === 'pendente', cel = v => ({userEnteredValue: {stringValue: String(v || '')}});
+        const iso = String((pend ? r.ultimaTentativa : r.dataAbertura) || r.criadoEm || '').slice(0, 10);
+        const vals = [pend ? 'Não enviada (problema no site)' : 'Enviada', pend ? '' : (r.protocolo || ''), iso ? fmtData(iso) : ''];
+        const pedidos = [];
+        cs.slice(0, 3).forEach((c, i) => { if(c >= 0) pedidos.push({updateCells: {range: {sheetId, startRowIndex: j, endRowIndex: j + 1, startColumnIndex: c, endColumnIndex: c + 1}, rows: [{values: [cel(vals[i])]}], fields: 'userEnteredValue'}}); });
+        if(cs[3] >= 0) pedidos.push({updateCells: {range: {sheetId, startRowIndex: j, endRowIndex: j + 1, startColumnIndex: cs[3], endColumnIndex: cs[3] + 1},
+          rows: [{values: [{userEnteredValue: {stringValue: 'Abrir ouvidoria'}, textFormatRuns: [{startIndex: 0, format: {link: {uri: PORTAL_CAD + r.id}}}]}]}], fields: 'userEnteredValue,textFormatRuns'}});
+        if(cc >= 0 && !String(m[j][cc] || '').trim() && r.responsavel) pedidos.push({updateCells: {range: {sheetId, startRowIndex: j, endRowIndex: j + 1, startColumnIndex: cc, endColumnIndex: cc + 1}, rows: [{values: [cel(r.responsavel)]}], fields: 'userEnteredValue'}});
+        const ini = Math.max(0, Math.min(cc >= 0 ? cc : 0, ci)), fim = Math.max(...cs, ci) + 1;
+        pedidos.push({repeatCell: {range: {sheetId, startRowIndex: j, endRowIndex: j + 1, startColumnIndex: ini, endColumnIndex: fim},
+          cell: {userEnteredFormat: {backgroundColor: pend ? {red: 0.992, green: 0.851, blue: 0.663} : {red: 0.204, green: 0.659, blue: 0.325}}}, fields: 'userEnteredFormat.backgroundColor'}});
+        await g.lote(pid, pedidos);
+        toast(`Planilha de ouvidorias das faturas atualizada (aba ${l.aba}) ✓`);
+        return;
+      }
+    }catch(e){ /* sem Google ou sem acesso: a aba é atualizada depois pela tela de Faturas e Contratos */ }
   }
 
   // ---------- dados para a Cemig (de qualquer cadastro, enviado ou não) ----------
