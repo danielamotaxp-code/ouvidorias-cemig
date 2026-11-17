@@ -1386,7 +1386,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     try{ token = sessionStorage.getItem('ouv_tok') || null; }catch(e){ token = null; }
     dbStatus = token ? 'loading' : 'setup';
     setBanner(); renderRegistro();
-    if(token){ carregarDadosFixos(); carregarTipos(); await atualizarLista(); iniciarPolling(); desenharResultado(); }
+    if(token){ carregarDadosFixos(); carregarTipos(); await atualizarLista(); iniciarPolling(); desenharResultado(); aplicarPrefill(); }
   }
 
   function erroEscrita(e){
@@ -2183,6 +2183,23 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }finally{ $('btnGoogle').disabled = false; desenharGoogle(); }
   }
   $('btnGoogle').onclick = () => sincronizarGoogle(true);
+
+  // ================= vindo da lista de ouvidorias (Faturas e Contratos → aba Ouvidorias) =================
+  // A outra página deixa os dados do cliente em localStorage ("ouv_prefill") e abre esta; aqui o gerador já vem preenchido.
+  function aplicarPrefill(){
+    let p = null;
+    try{ p = JSON.parse(localStorage.getItem('ouv_prefill') || 'null'); }catch(e){}
+    if(!p || !p.valores || Date.now() - (p.em || 0) > 15 * 60 * 1000) return;
+    try{ localStorage.removeItem('ouv_prefill'); }catch(e){}
+    const t = tipoPorNum(p.reclamacao || 6); if(!t) return;
+    atual = t.id; store.set('ouv_tipo', atual);
+    valores[atual] = Object.assign({pessoa: 'PF'}, p.valores); checks[atual] = new Set(); salvarLocal();
+    pendenteAtual = null; store.set('ouv_pend', null); resultado = 'ok'; anxPend = {};
+    irPara('gerar'); renderGerador(); try{ desenharResultado(); }catch(e){}
+    toast(`Dados de ${p.valores.nomeCliente || 'cliente'} carregados da lista de ouvidorias de ${p.lista || ''}. Complete o endereço e confira.`);
+  }
+  window.addEventListener('storage', e => { if(e.key === 'ouv_prefill' && e.newValue && token) aplicarPrefill(); });
+  window.addEventListener('focus', () => { if(token) aplicarPrefill(); });
 
   // ================= LOGIN =================
   const USUARIOS = ['Daniela','Paula','Pedro','Victor','Ytala'];
