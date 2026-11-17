@@ -392,6 +392,7 @@
     </div>
   </div>
   <div id="gStatus" class="gstatus"></div>
+  <div id="vidPasta" class="gstatus"></div>
   <div id="regBanner"></div>
   <div class="toolbar">
     <div class="search">
@@ -1457,7 +1458,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   async function conectarDrive(){
     if(!G() || !G().conectarDrive){ toast('Abra pela plataforma para usar o Google Drive.'); return; }
-    try{ await G().conectarDrive(); toast('Google Drive conectado ✓'); }
+    try{ await G().conectarDrive(); toast('Google Drive conectado ✓'); setTimeout(() => conferirVideosDrive(true), 0); }
     catch(e){ toast('O login do Google não foi concluído.'); }
     desenharAnexos(); if(dadosId && $('modalDados').classList.contains('open')) abrirDados(dadosId);
   }
@@ -1479,6 +1480,54 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }
     throw {status: 409};
   }
+  // ---- pasta de vídeos no Registro + vídeos apagados no Drive saem dos cadastros ----
+  let vidConferidoEm = 0, vidConferindo = false, vidMsg = '';
+  const videosNosCadastros = () => registros.flatMap(r => (r.arquivos || []).filter(a => a.drive && a.driveId).map(a => ({r, a})));
+  function desenharPastaVideos(){
+    const b = $('vidPasta'); if(!b) return;
+    const n = videosNosCadastros().length, tokOk = driveOk() || (tokVid && Date.now() < tokVidAte);
+    const url = `https://drive.google.com/drive/folders/${esc(pastaVideos())}`;
+    b.className = 'gstatus' + (vidMsg ? ' ok' : '');
+    b.innerHTML = `<span style="font-size:15px">📁</span><span>Vídeos dos envios: pasta <b>Videos Erros Cemig</b> no Google Drive${n ? ` (${n} vídeo${n>1?'s':''} nos cadastros)` : ''}.${vidConferindo ? ' Conferindo vídeos apagados…' : vidMsg ? ' ' + esc(vidMsg) : ''}</span>
+      <a href="${url}" target="_blank" rel="noopener">Abrir pasta</a>
+      ${n ? (tokOk ? '<button class="lnk" id="vidConferir" type="button">Conferir vídeos apagados</button>' : '<button class="lnk" id="vidConectar" type="button">Conectar Google Drive para tirar dos cadastros os vídeos apagados</button>') : ''}`;
+    if($('vidConferir')) $('vidConferir').onclick = () => conferirVideosDrive(true);
+    if($('vidConectar')) $('vidConectar').onclick = async () => { try{ await tokenVideo(true); }catch(e){ toast(e.message || 'O login do Google não foi concluído.'); return; } conferirVideosDrive(true); };
+  }
+  // Se um vídeo foi apagado (ou foi para a lixeira) no Drive, ele sai também do cadastro da ouvidoria.
+  async function conferirVideosDrive(manual){
+    const itens = videosNosCadastros();
+    if(!itens.length || vidConferindo || !podeEscrever) { desenharPastaVideos(); return; }
+    if(!manual && Date.now() - vidConferidoEm < 2 * 60 * 1000) return;
+    const tokOk = driveOk() || (tokVid && Date.now() < tokVidAte);
+    if(!tokOk){ desenharPastaVideos(); return; } // sem login do Google não dá para perguntar ao Drive (o botão aparece na linha da pasta)
+    vidConferindo = true; vidMsg = ''; desenharPastaVideos();
+    try{
+      const t = await tokenVideo(false), H = {Authorization: 'Bearer ' + t};
+      const naPasta = new Set(); let pg = '';
+      do{
+        const q = encodeURIComponent(`'${pastaVideos()}' in parents and trashed=false`);
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=nextPageToken,files(id)&pageSize=1000&supportsAllDrives=true&includeItemsFromAllDrives=true${pg ? '&pageToken=' + pg : ''}`, {headers: H});
+        if(!r.ok) throw new Error('Drive ' + r.status);
+        const j = await r.json(); (j.files || []).forEach(f => naPasta.add(f.id)); pg = j.nextPageToken || '';
+      } while(pg);
+      const apagados = new Set();
+      for(const {a} of itens){
+        if(naPasta.has(a.driveId) || apagados.has(a.driveId)) continue;
+        // não está na pasta: confere se foi mesmo apagado (pode só ter sido movido para outra pasta)
+        const r = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(a.driveId)}?fields=id,trashed&supportsAllDrives=true`, {headers: H});
+        if(r.status === 404) apagados.add(a.driveId);
+        else if(r.ok && (await r.json()).trashed) apagados.add(a.driveId);
+      }
+      if(apagados.size){
+        const ok = await gravar(() => alterar(l => l.map(r => (r.arquivos || []).some(a => a.drive && apagados.has(a.driveId)) ? Object.assign({}, r, {arquivos: r.arquivos.filter(a => !(a.drive && apagados.has(a.driveId)))}) : r), `Tira dos cadastros ${apagados.size} vídeo(s) apagado(s) no Google Drive (${quem()})`));
+        if(ok){ vidMsg = `${apagados.size} vídeo${apagados.size>1?'s apagados':' apagado'} no Drive ${apagados.size>1?'foram tirados':'foi tirado'} dos cadastros.`; toast(vidMsg); await atualizarLista(true); }
+      } else if(manual) vidMsg = 'Todos os vídeos dos cadastros continuam no Drive ✓';
+      vidConferidoEm = Date.now();
+    }catch(e){ if(manual) toast('Não consegui conferir os vídeos no Drive agora. Tente de novo.'); }
+    finally{ vidConferindo = false; desenharPastaVideos(); }
+  }
+
   // ---- envio do vídeo para o Google Drive feito pela própria página (não depende da versão do portal) ----
   let tokVid = null, tokVidAte = 0;
   async function tokenVideo(forcar){
@@ -1832,6 +1881,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 
   function renderRegistro(){
+    try{ desenharPastaVideos(); setTimeout(() => conferirVideosDrive(false), 0); }catch(e){}
     const noSt = r => statusAtual === 'todos' || statusReg(r) === statusAtual, doGr = r => grupoReg(r) === grupoAtual;
     $('cntCli').textContent = registros.filter(r => grupoReg(r)==='cliente' && noSt(r)).length;
     $('cntGer').textContent = registros.filter(r => grupoReg(r)==='gerador' && noSt(r)).length;
