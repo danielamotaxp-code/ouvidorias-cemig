@@ -22,7 +22,7 @@
     respondido: 'Verificado / respondido',
     encerrado: 'Encerrado'
   };
-  var NOVA = { avaliar: 'Avaliar depois da verificação', sim: 'Sim', nao: 'Não' };
+  var NOVA = { avaliar: 'A avaliar', sim: 'Sim', nao: 'Não' };
   // prazo: data + N dias úteis (sem sábado e domingo)
   function maisDiasUteis(iso, n) {
     if (!iso) return '';
@@ -126,5 +126,27 @@
     return { registro: null, por: '' };
   }
 
-  raiz.Retornos = { lerCampos: lerCampos, acharRegistro: acharRegistro, TIPOS: TIPOS, SITUACOES: SITUACOES, NOVA: NOVA, maisDiasUteis: maisDiasUteis };
+  /* ---------- aprender com as correções da equipe ----------
+     Cada vez que alguém corrige "O que vamos fazer" (ou o tipo), o par texto → decisão vira um exemplo.
+     Num retorno novo parecido com um exemplo, a plataforma sugere o que a equipe decidiu da outra vez. */
+  var PARADAS = ' a o e de da do das dos em no na nos nas que para por com sem sua seu suas seus ao aos as os um uma foi sao ser esta este essa esse isso pela pelo pelas pelos mais como nao sobre entre ainda informamos atencao manifestacao registrada nesta ouvidoria referente cemig prezado senhor senhora '.split(' ');
+  function palavras(t) {
+    var vistos = {};
+    sem(t).toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).forEach(function (w) {
+      if (w.length >= 4 && !/^\d+$/.test(w) && PARADAS.indexOf(w) < 0) vistos[w.replace(/(oes|aes|s)$/, '')] = 1;
+    });
+    return Object.keys(vistos);
+  }
+  function parecido(c, exemplos) {
+    var p = palavras(c.corpo || c.resumo || ''), melhor = null;
+    if (!p.length) return null;
+    (exemplos || []).forEach(function (ex) {
+      var q = ex.palavras || [], inter = q.filter(function (w) { return p.indexOf(w) >= 0; }).length;
+      var nota = inter / Math.max(1, Math.min(p.length, q.length));
+      if (!melhor || nota > melhor.nota) melhor = { ex: ex, nota: nota };
+    });
+    return melhor && melhor.nota >= 0.45 ? melhor : null;
+  }
+
+  raiz.Retornos = { palavras: palavras, parecido: parecido, lerCampos: lerCampos, acharRegistro: acharRegistro, TIPOS: TIPOS, SITUACOES: SITUACOES, NOVA: NOVA, maisDiasUteis: maisDiasUteis };
 })(typeof window !== 'undefined' ? window : this);

@@ -8,8 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="retornos.js?v=202611181545"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181545"></script>
+<script src="retornos.js?v=202611181600"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181600"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -2441,6 +2441,28 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   const rotuloReg = r => `${r.nome || 'sem nome'} · Recl. ${r.reclamacao || '?'}${r.protocolo ? ' · ' + r.protocolo : ''}${r.instalacao ? ' · inst. ' + r.instalacao : ''}`;
   // retornos sem ouvidoria na plataforma ficam num arquivo próprio da parte privada
+  // arquivo JSON da parte privada: ler e alterar com nova tentativa se outra pessoa gravou junto
+  async function lerArqJson(arq){
+    const r = await ghFetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${arq}?ref=${CFG.branch}&t=${Date.now()}`);
+    if(r.status === 404) return {dados: {}, sha: null};
+    if(!r.ok) throw {status: r.status};
+    const j = await r.json(); return {dados: JSON.parse(b64dec(j.content || '') || '{}'), sha: j.sha};
+  }
+  async function alterarArqJson(arq, fn, msg){
+    for(let i = 0; i < 4; i++){
+      const {dados, sha} = await lerArqJson(arq), novo = fn(dados);
+      const corpo = {message: msg, branch: CFG.branch, content: b64enc(JSON.stringify(novo, null, 1))}; if(sha) corpo.sha = sha;
+      const r = await ghFetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${arq}`, {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(corpo)});
+      if(r.ok) return novo;
+      if(r.status !== 409 && r.status !== 422) throw {status: r.status};
+      await new Promise(z => setTimeout(z, 400 + Math.random() * 700));
+    }
+    throw {status: 409};
+  }
+  // exemplos ensinados pela equipe (texto do retorno → o que fazer)
+  const ARQ_EXEMPLOS = 'retornos-exemplos.json';
+  let exemplosRet = [];
+  async function lerExemplos(){ try{ exemplosRet = ((await lerArqJson(ARQ_EXEMPLOS)).dados.exemplos) || []; }catch(e){} }
   async function lerSemCadastro(){
     try{
       const r = await ghFetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${ARQ_SEM}?ref=${CFG.branch}&t=${Date.now()}`);
@@ -2469,10 +2491,15 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       try{
         const txt = await textoDoPdf(x.file, m => { x.estado = m; desenharRetFila(); });
         const c = RT.lerCampos(txt), a = RT.acharRegistro(c, registros);
+        // retorno parecido com um que a equipe já corrigiu: usa a decisão de lá
+        const par = RT.parecido ? RT.parecido(c, exemplosRet) : null;
+        if(par && c.tipo !== 'registro'){ c.acao = par.ex.acao; c.tipo = par.ex.tipo || c.tipo; c.situacao = par.ex.situacao || c.situacao; c.aprendido = par.ex; }
         Object.assign(x, {campos: c, regId: a.registro ? a.registro.id : SEM, por: a.por, tipo: c.tipo, dataISO: c.dataISO || isoHoje(), prazo: c.prazo || '',
           resumo: c.resumo, acao: c.acao, situacao: c.situacao, novaOuvidoria: c.novaOuvidoria,
           nome: c.nome || '', uc: (c.ucs || [])[0] || '', instalacao: (c.instalacoes || [])[0] || '',
-          estado: a.registro ? `Ouvidoria achada pelo ${a.por}.` : 'Esta ouvidoria não está na plataforma (feita antes dela): fica separada para verificar.'});
+          acaoSugerida: c.acao, tipoSugerido: c.tipo,
+          estado: (a.registro ? `Ouvidoria achada pelo ${a.por}.` : 'Esta ouvidoria não está na plataforma (feita antes dela): fica separada para verificar.') +
+            (c.aprendido ? ` "O que vamos fazer" veio de um retorno parecido que ${c.aprendido.por || 'a equipe'} corrigiu${c.aprendido.em ? ' em ' + fmtData(String(c.aprendido.em).slice(0, 10)) : ''}.` : '')});
       }catch(e){ x.erro = true; x.estado = 'Não consegui ler este PDF: ' + (e.message || e) + '. Preencha à mão.';
         Object.assign(x, {campos: {numOuvidoria: [], protocolos: []}, regId: SEM, tipo: 'verificar', dataISO: isoHoje(), prazo: '', resumo: '', acao: '', situacao: 'verificar', novaOuvidoria: 'avaliar', nome: '', uc: '', instalacao: ''}); }
       desenharRetFila();
@@ -2492,9 +2519,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           <label>Data do retorno <input type="date" data-rk="dataISO" data-ri="${i}" value="${esc(x.dataISO || '')}"></label>
           <label>Prazo de resposta da Cemig <input type="date" data-rk="prazo" data-ri="${i}" value="${esc(x.prazo || '')}"></label>
           <label>Situação ${sel('situacao', RT.SITUACOES)}</label>
-          <label>Abrir nova ouvidoria? ${sel('novaOuvidoria', RT.NOVA)}</label>
           <label class="full">O que a Cemig respondeu <textarea data-rk="resumo" data-ri="${i}">${esc(x.resumo || '')}</textarea></label>
-          <label class="full">O que vamos fazer <textarea data-rk="acao" data-ri="${i}">${esc(x.acao || '')}</textarea></label>
+          <label class="full">O que vamos fazer <small style="font-weight:400">— se você corrigir, a plataforma aprende e sugere igual nos próximos retornos parecidos</small><textarea data-rk="acao" data-ri="${i}">${esc(x.acao || '')}</textarea></label>
           ${x.campos.numOuvidoria && x.campos.numOuvidoria[0] ? `<span class="st">Nº na Ouvidoria Cemig: ${esc(x.campos.numOuvidoria[0])}${x.campos.referencia ? ' · Referência ' + esc(x.campos.referencia) : ''}</span>` : ''}
         </div>` : ''}</div>`;
     }).join('');
@@ -2535,7 +2561,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         x.salvo = true; desenharRetFila();
         try{ await atualizarListaFaturas(registros.find(z => z.id === r.id)); }catch(e){}
       }
-      $('retMsg').textContent = `${prontos.length} retorno(s) salvo(s).`;
+      // correções viram exemplos para os próximos retornos
+      const novos = prontos.filter(x => x.campos && x.campos.corpo && x.tipo !== 'registro' && ((x.acao || '').trim() !== (x.acaoSugerida || '').trim() || x.tipo !== x.tipoSugerido))
+        .map(x => ({palavras: RT.palavras(x.campos.corpo), resumo: (x.resumo || '').slice(0, 300), acao: (x.acao || '').trim(), tipo: x.tipo, situacao: x.situacao, por: quem(), em: new Date().toISOString()}));
+      if(novos.length){ try{ const d = await alterarArqJson(ARQ_EXEMPLOS, d => Object.assign({}, d, {exemplos: (d.exemplos || []).concat(novos)}), `Retornos: ${novos.length} exemplo(s) ensinado(s) (${quem()})`); exemplosRet = d.exemplos; }catch(e){} }
+      $('retMsg').textContent = `${prontos.length} retorno(s) salvo(s).` + (novos.length ? ` A plataforma aprendeu com ${novos.length} correção(ões).` : '');
       await sincronizarRetornos(false);
     }catch(e){ $('retMsg').textContent = 'Não consegui salvar: ' + (e.message || e.status || e); }
     $('retSalvar').disabled = false; renderRetornos();
@@ -2556,11 +2586,12 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       <td>${r.semCadastro ? `<b>${esc(r.nome || 'sem nome')}</b><br><small class="ret-pill responder">não está na plataforma</small>` : `<button class="lnk" type="button" data-rdados="${esc(r.id)}">${esc(r.nome || 'sem nome')}</button>`}<br><small>${r.reclamacao ? 'Recl. ' + esc(r.reclamacao) : ''}${r.protocolo ? ' · ' + esc(r.protocolo) : ''}${t.numOuvidoria || r.numOuvidoria ? ' · Ouv. ' + esc(t.numOuvidoria || r.numOuvidoria) : ''}${r.uc ? ' · UC ' + esc(r.uc) : ''}</small>${t.arquivo ? `<br><button class="lnk" type="button" data-retpdf2="${esc(t.arquivo)}">Ver PDF</button>` : ''}</td>
       <td><small>${esc(RT.TIPOS[t.tipo] || t.tipo)}</small><br>${esc((t.resumo || '').slice(0, 220))}${(t.resumo || '').length > 220 ? '…' : ''}</td>
       <td>${esc(fmtData(t.prazo))}</td>
-      <td>${esc((t.acao || t.pedido || '').slice(0, 260))}${t.novaOuvidoria && t.novaOuvidoria !== 'avaliar' ? `<br><small>Nova ouvidoria: <b>${esc(RT.NOVA[t.novaOuvidoria] || '')}</b></small>` : ''}</td>
+      <td>${esc((t.acao || t.pedido || '').slice(0, 260))}<br><small>Nova ouvidoria: <b>${esc(RT.NOVA[t.novaOuvidoria || 'avaliar'] || '')}</b>${t.responsavelAval ? ' · avalia: ' + esc(t.responsavelAval) : ''}</small></td>
       <td><span class="ret-pill ${esc(t.situacao)}">${esc(RT.SITUACOES[t.situacao] || t.situacao)}</span></td>
       <td>${retEditando === t.id ? `<div class="ret-resp"><textarea id="rrTxt" placeholder="O que verificamos / respondemos">${esc(t.nossaResposta || '')}</textarea>
           <input type="date" id="rrData" value="${esc(t.respostaData || isoHoje())}">
           <select id="rrSit">${Object.keys(RT.SITUACOES).map(v => `<option value="${v}" ${v === t.situacao ? 'selected' : ''}>${esc(RT.SITUACOES[v])}</option>`).join('')}</select>
+          <input id="rrResp" list="rrPessoas" placeholder="Responsável pela avaliação" value="${esc(t.responsavelAval || '')}"><datalist id="rrPessoas">${[...new Set(registros.map(z => z.responsavel).filter(Boolean))].map(n => `<option value="${esc(n)}">`).join('')}</datalist>
           <select id="rrNova">${Object.keys(RT.NOVA).map(v => `<option value="${v}" ${v === (t.novaOuvidoria || 'avaliar') ? 'selected' : ''}>Nova ouvidoria: ${esc(RT.NOVA[v])}</option>`).join('')}</select>
           <span><button class="btn primary" type="button" data-rrsalva="${esc(r.id || SEM)}|${esc(t.id)}">Salvar</button> <button class="lnk" type="button" data-rrcancela="1">Cancelar</button></span></div>`
         : `${t.nossaResposta ? esc(t.nossaResposta.slice(0, 160)) + (t.respostaData ? `<br><small>${esc(fmtData(t.respostaData))}</small>` : '') + '<br>' : ''}<button class="lnk" type="button" data-rredita="${esc(t.id)}">${t.nossaResposta ? 'Editar' : 'Registrar o que foi feito'}</button>`}</td></tr>`).join('')}</tbody></table>`
@@ -2570,7 +2601,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('retLista').querySelectorAll('[data-rredita]').forEach(b => b.onclick = () => { retEditando = b.dataset.rredita; renderRetornos(); });
     $('retLista').querySelectorAll('[data-rrcancela]').forEach(b => b.onclick = () => { retEditando = null; renderRetornos(); });
     $('retLista').querySelectorAll('[data-rrsalva]').forEach(b => b.onclick = async () => {
-      const [rid, tid] = b.dataset.rrsalva.split('|'), patch = {nossaResposta: $('rrTxt').value.trim(), respostaData: $('rrData').value, situacao: $('rrSit').value, novaOuvidoria: $('rrNova').value, respondidoPor: quem()};
+      const [rid, tid] = b.dataset.rrsalva.split('|'), patch = {nossaResposta: $('rrTxt').value.trim(), respostaData: $('rrData').value, situacao: $('rrSit').value, novaOuvidoria: $('rrNova').value, responsavelAval: $('rrResp').value.trim(), respondidoPor: quem()};
       b.disabled = true;
       try{
         if(rid === SEM) await alterarSemCadastro(l => l.map(t => t.id === tid ? Object.assign({}, t, patch) : t), `Retorno sem cadastro atualizado (${quem()})`);
@@ -2582,21 +2613,21 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     });
   }
   // planilha "Retornos das Ouvidorias": uma linha por retorno (acha a linha pelo ID do retorno, na última coluna)
-  const RET_COLS = 20; // A..T (T = ID do retorno)
+  const RET_COLS = 21; // A..U (U = ID do retorno)
   async function sincronizarRetornos(manual){
     const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Conecte o Google em Planilhas das ouvidorias primeiro.'); return; }
     const pid = (linkRetornos().match(/\/d\/([\w-]{20,})/) || [])[1]; if(!pid) return;
     try{
       const meta = await g.planilha(pid), folha = (meta.sheets || []).find(f => f.properties.title === 'Retornos') || meta.sheets[0];
       const sid = folha.properties.sheetId, nome = `'${folha.properties.title.replace(/'/g, "''")}'`;
-      const m = await g.ler(pid, nome + '!A1:T');
+      const m = await g.ler(pid, nome + '!A1:U');
       const linhaDe = {}; m.forEach((l, i) => { if(i > 0 && l[RET_COLS - 1]) linhaDe[l[RET_COLS - 1]] = i; });
       let prox = Math.max(m.length, 1);
       const cor = {verificar: {red: .99, green: .89, blue: .88}, nova_ouvidoria: {red: .98, green: .8, blue: .78}, responder: {red: .99, green: .89, blue: .88}, aguardando_cemig: {red: 1, green: .95, blue: .81}, respondido: {red: .89, green: .93, blue: .99}, encerrado: {red: .89, green: .96, blue: .91}};
       const ped = [];
       todosRetornos().slice().reverse().forEach(({r, t}) => {
         const v = [fmtData(t.dataISO), r.nome || '', r.instalacao || '', r.uc || '', r.reclamacao ? 'Reclamação ' + r.reclamacao : '', r.protocolo || t.protocoloCitado || '', t.numOuvidoria || r.numOuvidoria || '',
-          r.responsavel || '', RT.TIPOS[t.tipo] || t.tipo || '', t.resumo || '', fmtData(t.prazo), t.acao || t.pedido || '', RT.NOVA[t.novaOuvidoria] || '', t.nossaResposta || '', fmtData(t.respostaData),
+          r.responsavel || '', RT.TIPOS[t.tipo] || t.tipo || '', t.resumo || '', fmtData(t.prazo), t.acao || t.pedido || '', RT.NOVA[t.novaOuvidoria || 'avaliar'] || '', t.responsavelAval || '', t.nossaResposta || '', fmtData(t.respostaData),
           RT.SITUACOES[t.situacao] || t.situacao || '', r.semCadastro ? 'Não (feita antes da plataforma)' : 'Sim'];
         const lin = linhaDe[t.id] != null ? linhaDe[t.id] : prox++;
         const atual = m[lin] || [];
@@ -2633,7 +2664,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('viewRegistro').hidden = v !== 'registro';
     $('viewPlanilhas').hidden = v !== 'planilhas';
     $('viewRetornos').hidden = v !== 'retornos';
-    if(v === 'retornos'){ renderRetornos(); lerSemCadastro().then(renderRetornos); }
+    if(v === 'retornos'){ renderRetornos(); lerSemCadastro().then(renderRetornos); lerExemplos(); }
     if(v === 'planilhas') abrirPlanilhas();
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
     if(v === 'registro') renderRegistro();
