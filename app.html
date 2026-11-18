@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="retornos.js?v=202611181600"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181600"></script>
+<script src="solicitadas.js?v=202611181700"></script>
+<script src="retornos.js?v=202611181700"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181700"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -301,6 +302,13 @@
   .ret-pill.verificar,.ret-pill.nova_ouvidoria{background:#fde4e1;color:#9b2c1f}.ret-pill.respondido{background:#e3eefc;color:#1d4f91}.ret-pill.encerrado{background:#e2f4e8;color:#1d5a37}
   .ret-resp{display:grid;gap:6px;margin-top:6px}
   .ret-resp textarea{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px;min-height:60px}
+
+  .sol-msg{width:100%;min-height:56px;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+  .sol-card{display:grid;grid-template-columns:minmax(200px,320px) 1fr;gap:14px}
+  .sol-card img{width:100%;border:1px solid var(--line);border-radius:8px;cursor:zoom-in}
+  .ret-grid label.pede input,.ret-grid label.pede select,.ret-grid label.pede textarea{background:#fff6cf;border-color:#e8cf6a}
+  .ret-grid label.naovale{opacity:.45}
+  @media (max-width:720px){.sol-card{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="embutido.css?v=1">
 </head>
@@ -324,6 +332,7 @@
     </div>
   </div>
   <div class="tabs" role="tablist">
+    <button class="tab" data-view="solicitadas" role="tab">Ouvidorias solicitadas</button>
     <button class="tab" data-view="gerar" role="tab">Gerar ouvidoria</button>
     <button class="tab" data-view="registro" role="tab">Registro de protocolos</button>
     <button class="tab" data-view="planilhas" role="tab">Planilhas das ouvidorias</button>
@@ -398,6 +407,28 @@
 <!-- =============== ABA REGISTRO =============== -->
 <!-- =============== ABA PLANILHAS (Reclamação 6 das faturas + outras planilhas) =============== -->
 <div id="viewPlanilhas" hidden><iframe id="frPlanilhas" title="Planilhas das ouvidorias" style="display:block;width:100%;border:0;min-height:calc(100vh - var(--hdr, 120px))"></iframe></div>
+
+<!-- =============== ABA OUVIDORIAS SOLICITADAS =============== -->
+<div id="viewSolicitadas" class="reg" hidden>
+  <div class="reg-head"><div><h2>Ouvidorias solicitadas</h2>
+    <p class="ret-sub">Mande aqui o print do cliente e o tipo de reclamação, como no grupo. A plataforma lê o print, mostra o que cada reclamação precisa e manda tudo formatado para a planilha <a id="solLinkPlan" target="_blank" rel="noopener">Ouvidorias Solicitadas</a>. Protocolo e demais dados a equipe busca na hora de abrir.</p></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="solSinc" type="button">Atualizar planilha</button></div>
+  </div>
+  <div id="solG" class="gstatus"></div>
+  <label class="ret-sub" style="display:block;margin:10px 0 4px;font-weight:600">Mensagem do grupo (opcional) — a plataforma tira o nº da reclamação e o motivo</label>
+  <textarea id="solMsg" class="sol-msg" placeholder="Ex.: abre a ouvidoria dessa cliente, por atraso na injeção, por gentileza? É a reclamação 8"></textarea>
+  <label class="ret-drop" id="solDrop" tabindex="0"><input type="file" id="solArq" accept="image/*,.pdf" multiple hidden>
+    <b>Cole o print aqui (Ctrl+V) ou arraste</b><span>ou clique para escolher. Um print por cliente; pode mandar vários. Só o print e o tipo de reclamação bastam: o resto a equipe busca na plataforma da empresa.</span></label>
+  <div id="solFila"></div>
+  <div id="solAcoes" class="ret-acoes" hidden><button class="btn primary" id="solSalvar" type="button">Cadastrar solicitações</button><span id="solMsgSalvar" class="ret-msg"></span></div>
+  <h3 class="ret-h3">Solicitações</h3>
+  <div class="chips" id="solFiltro">
+    <button class="chip on" data-sf="abrir">A abrir</button>
+    <button class="chip" data-sf="aberta">Já abertas</button>
+    <button class="chip" data-sf="">Todas</button>
+  </div>
+  <div id="solLista"></div>
+</div>
 
 <!-- =============== ABA RETORNO DAS OUVIDORIAS =============== -->
 <div id="viewRetornos" class="reg" hidden>
@@ -1867,6 +1898,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           if(ok.length) toast(`Atualizado também em: ${ok.join(', ')} ✓`);
         }catch(e){}
       }
+      try{ if(window.Acompanhamento) await window.Acompanhamento.sincronizar({google: G(), planilhas: [{nome: 'Ouvidorias Solicitadas', link: linkSolicitadas(), colorir: true, reclamacoes: [], desde: '2026-10-01'}], registros, instalacoes: [r.instalacao], protocolos: [r.protocolo]}); }catch(e){}
       if(+r.reclamacao === 6) await atualizarAbaR6(r, d);
       // retorno da Cemig também na planilha das faturas (Reclamação 6)
       if(+r.reclamacao === 6 && (r.retornos || []).length && d.planilha && window.Acompanhamento){
@@ -2336,7 +2368,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     valores[atual] = Object.assign({pessoa: 'PF'}, p.valores); checks[atual] = new Set(); salvarLocal();
     pendenteAtual = null; store.set('ouv_pend', null); resultado = 'ok'; anxPend = {};
     irPara('gerar'); renderGerador(); try{ desenharResultado(); }catch(e){}
-    toast(`Dados de ${p.valores.nomeCliente || 'cliente'} carregados da lista de ouvidorias de ${p.lista || ''}. Complete o endereço e confira.`);
+    toast(`Dados de ${p.valores.nomeCliente || p.valores.nomeUsina || 'cliente'} carregados (${p.lista || ''}). Complete o endereço e confira.`);
   }
   window.addEventListener('storage', e => { if(e.key === 'ouv_prefill' && e.newValue && token) aplicarPrefill(); });
   // link "Abrir ouvidoria" da planilha de ouvidorias das faturas: #ouvidorias/cad/<id do cadastro> abre o 📋 do cadastro
@@ -2657,13 +2689,178 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('retFiltro').querySelectorAll('[data-rf]').forEach(b => b.onclick = () => { retFiltro = b.dataset.rf; $('retFiltro').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); renderRetornos(); });
   })();
 
+  // ---------- Ouvidorias solicitadas (print + tipo → planilha Ouvidorias Solicitadas) ----------
+  const SOL = window.Solicitadas || {TIPOS: {}, PEDE: {}, NAO_VALE: {}};
+  const SOL_PLANILHA_PADRAO = 'https://docs.google.com/spreadsheets/d/1047uWdkcBKOpBdrC4FjjQgEOLpg4ZlzaSZa6IopYKEc/edit';
+  const linkSolicitadas = () => fixos.planilhaSolicitadas || SOL_PLANILHA_PADRAO;
+  const ARQ_SOL = 'solicitacoes.json';
+  const SOL_CAMPOS = [['nome', 'Nome do cliente'], ['instalacao', 'Instalação do cliente'], ['uc', 'UC do cliente'], ['doc', 'CPF/CNPJ do cliente'],
+    ['usinaNome', 'Nome da usina'], ['usinaInst', 'Instalação da usina'], ['usinaUc', 'UC da usina'], ['outros', 'Outros dados desta reclamação'], ['obs', 'Observação']];
+  let solFila = [], solicitacoes = [], solFiltro = 'abrir';
+  async function lerSolicitacoes(){ try{ solicitacoes = ((await lerArqJson(ARQ_SOL)).dados.solicitacoes) || []; }catch(e){} }
+  // print pequeno: amplia e passa para cinza antes do OCR
+  async function textoDoPrint(file){
+    const url = URL.createObjectURL(file), img = new Image();
+    await new Promise((ok, falha) => { img.onload = ok; img.onerror = falha; img.src = url; });
+    const k = Math.max(1, Math.min(4, 2400 / img.width)), cv = document.createElement('canvas');
+    cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+    const cx = cv.getContext('2d'); cx.filter = 'grayscale(1) contrast(1.4)'; cx.drawImage(img, 0, 0, cv.width, cv.height);
+    const T = await carregarOcr();
+    return (await T.recognize(cv)).data.text;
+  }
+  async function lerPrints(files){
+    const m = SOL.lerMensagem ? SOL.lerMensagem($('solMsg').value) : {};
+    files.filter(f => /^image\//.test(f.type)).forEach(f => solFila.push({file: f, url: URL.createObjectURL(f), estado: 'Lendo o print…', tipo: m.tipo || '', motivo: m.motivo || '', dados: {}}));
+    desenharSolFila();
+    for(const x of solFila.filter(z => !z.lido)){
+      try{ const c = SOL.lerPrint(await textoDoPrint(x.file)); x.dados = Object.assign({}, c, x.dados); x.estado = 'Confira os campos amarelos (o print pode ter saído com algum número errado).'; }
+      catch(e){ x.estado = 'Não consegui ler o print: preencha os campos à mão.'; }
+      x.lido = true; desenharSolFila();
+    }
+  }
+  function desenharSolFila(){
+    const box = $('solFila'); if(!box) return;
+    box.innerHTML = solFila.map((x, i) => {
+      const pede = SOL.PEDE[+x.tipo] || [], nao = SOL.NAO_VALE[+x.tipo] || [];
+      return `<div class="ret-card ${x.salvo ? 'ok' : ''}"><div class="top"><b>🖼 Print ${i + 1}</b><span class="st">${x.salvo ? '✓ Cadastrada' : esc(x.estado || '')}${x.salvo ? '' : ` · <button class="lnk" type="button" data-stira="${i}">Tirar</button>`}</span></div>
+        <div class="sol-card"><a href="${x.url}" target="_blank" rel="noopener"><img src="${x.url}" alt="print"></a><div class="ret-grid">
+          <label class="full">Tipo de reclamação <select data-sk="tipo" data-si="${i}"><option value="">— escolha —</option>${Object.keys(SOL.TIPOS).map(n => `<option value="${n}" ${+x.tipo === +n ? 'selected' : ''}>${esc(SOL.TIPOS[n])}</option>`).join('')}</select></label>
+          <label class="full">Motivo <input data-sk="motivo" data-si="${i}" value="${esc(x.motivo || '')}" placeholder="Ex.: atraso na injeção"></label>
+          ${x.tipo ? `<span class="st full" style="grid-column:1/-1">Dados lidos do print (opcionais, só para conferência). Para esta reclamação importam: <b>${esc(pede.map(k => (SOL_CAMPOS.find(c => c[0] === k) || [k, k])[1]).join(', '))}</b>. O que faltar a equipe busca.</span>` : ''}
+          <label class="full ${(SOL.RETORNO || {})[+x.tipo] ? 'pede' : ''}">Retorno da Cemig ${(SOL.RETORNO || {})[+x.tipo] ? '<b>(obrigatório nesta reclamação)</b>: ' + esc(SOL.RETORNO[+x.tipo]) : '<small>(opcional)</small>'}
+            <input type="file" data-sret="${i}" accept=".pdf,image/*" multiple>${(x.retorno || []).length ? `<small>📎 ${x.retorno.map(f => esc(f.name)).join(', ')}</small>` : ''}</label>
+          ${SOL_CAMPOS.map(([k, rot]) => `<label class="${pede.includes(k) ? 'pede' : nao.includes(k) ? 'naovale' : ''}${k === 'outros' || k === 'obs' ? ' full' : ''}">${rot}<input data-sk="${k}" data-si="${i}" value="${esc(x.dados[k] || '')}"></label>`).join('')}
+        </div></div></div>`;
+    }).join('');
+    box.querySelectorAll('[data-sk]').forEach(el => el.onchange = el.oninput = () => {
+      const x = solFila[+el.dataset.si]; if(!x || x.salvo) return; const k = el.dataset.sk;
+      if(k === 'tipo' || k === 'motivo') x[k] = el.value; else x.dados[k] = el.value;
+      if(k === 'tipo') desenharSolFila();
+    });
+    box.querySelectorAll('[data-sret]').forEach(el => el.onchange = () => { const x = solFila[+el.dataset.sret]; if(x && !x.salvo){ x.retorno = (x.retorno || []).concat([...el.files]); desenharSolFila(); } });
+    box.querySelectorAll('[data-stira]').forEach(b => b.onclick = () => { solFila.splice(+b.dataset.stira, 1); desenharSolFila(); });
+    $('solAcoes').hidden = !solFila.some(x => x.lido && !x.salvo);
+  }
+  async function salvarSolicitacoes(){
+    const prontos = solFila.filter(x => x.lido && !x.salvo);
+    const falta = prontos.find(x => !x.tipo || ((SOL.RETORNO || {})[+x.tipo] && !(x.retorno || []).length));
+    if(falta){ $('solMsgSalvar').textContent = !falta.tipo ? 'Escolha o tipo de reclamação de cada print.' : `Na reclamação ${falta.tipo}, anexe o retorno da Cemig.`; return; }
+    $('solSalvar').disabled = true;
+    try{
+      const novas = [];
+      for(const x of prontos){
+        const id = novoId(), caminho = `anexos/solicitacoes/${id.slice(0, 8)}-${nomeSeguro(x.file.name || 'print.png')}`;
+        $('solMsgSalvar').textContent = 'Enviando o print…';
+        await subirArquivo(caminho, x.file, `Ouvidoria solicitada (${quem()})`);
+        const d = Object.assign({}, x.dados); ['nome', 'usinaNome', 'outros', 'obs'].forEach(k => d[k] = String(d[k] || '').trim()); ['instalacao', 'uc', 'doc', 'usinaInst', 'usinaUc'].forEach(k => d[k] = String(d[k] || '').replace(/\D/g, ''));
+        const retorno = [];
+        for(const f of (x.retorno || [])){
+          const c = `anexos/solicitacoes/${id.slice(0, 8)}-retorno-${nomeSeguro(f.name || 'retorno.pdf')}`;
+          $('solMsgSalvar').textContent = 'Enviando o retorno da Cemig…';
+          await subirArquivo(c, f, `Retorno da Cemig da solicitação (${quem()})`);
+          retorno.push({caminho: c, nome: f.name, tipo: f.type || '', tamanho: f.size});
+        }
+        if(retorno.length && !d.outros) d.outros = 'Retorno da Cemig anexado na plataforma';
+        novas.push({id, criadoEm: new Date().toISOString(), por: quem(), tipo: +x.tipo, motivo: (x.motivo || '').trim(), dados: d, print: caminho, retorno});
+        x.salvo = true; desenharSolFila();
+      }
+      const d = await alterarArqJson(ARQ_SOL, d => Object.assign({}, d, {solicitacoes: (d.solicitacoes || []).concat(novas)}), `${novas.length} ouvidoria(s) solicitada(s) (${quem()})`);
+      solicitacoes = d.solicitacoes;
+      $('solMsgSalvar').textContent = `${novas.length} solicitação(ões) cadastrada(s).`; $('solMsg').value = '';
+      await sincronizarSolicitadas(false);
+    }catch(e){ $('solMsgSalvar').textContent = 'Não consegui cadastrar: ' + (e.message || e.status || e); }
+    $('solSalvar').disabled = false; renderSolicitadas();
+  }
+  // a ouvidoria que atendeu a solicitação (mesma reclamação, mesma instalação, registrada depois do pedido)
+  function ouvidoriaDa(s){
+    const insts = [s.dados.instalacao, s.dados.usinaInst].map(v => String(v || '').replace(/\D/g, '')).filter(v => v.length >= 6);
+    return registros.filter(r => +r.reclamacao === +s.tipo && insts.includes(String(r.instalacao || '').replace(/\D/g, '')) && String(r.criadoEm || '') >= String(s.criadoEm || '').slice(0, 10))
+      .sort((a, b) => String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')))[0] || null;
+  }
+  function renderSolicitadas(){
+    if(!$('solLista')) return;
+    $('solLinkPlan').href = linkSolicitadas();
+    const g = G(), on = !!(g && g.conectado && g.conectado());
+    $('solG').innerHTML = on ? '<span class="gdot"></span><span>Google conectado: a planilha Ouvidorias Solicitadas é atualizada ao cadastrar.</span>'
+      : '<span>Para mandar para a planilha Ouvidorias Solicitadas, conecte o Google em <b>Planilhas das ouvidorias</b>. As solicitações ficam salvas mesmo assim.</span>';
+    const itens = solicitacoes.map(s => ({s, r: ouvidoriaDa(s)})).filter(({r}) => solFiltro === '' || (solFiltro === 'aberta' ? r : !r))
+      .sort((a, b) => String(b.s.criadoEm).localeCompare(String(a.s.criadoEm)));
+    $('solLista').innerHTML = itens.length ? `<table class="ret-tab"><thead><tr><th>Data</th><th>Reclamação</th><th>Cliente / usina</th><th>Motivo</th><th>Pedido por</th><th>Situação</th><th></th></tr></thead><tbody>${itens.map(({s, r}) => `<tr>
+      <td>${esc(fmtData(String(s.criadoEm).slice(0, 10)))}</td><td>Reclamação ${esc(s.tipo)}</td>
+      <td>${esc(s.dados.nome || s.dados.usinaNome || '')}<br><small>${s.dados.instalacao ? 'Inst. ' + esc(s.dados.instalacao) : ''}${s.dados.uc ? ' · UC ' + esc(s.dados.uc) : ''}${s.dados.usinaInst ? ' · Usina ' + esc(s.dados.usinaInst) : ''}</small></td>
+      <td>${esc(s.motivo || '')}</td><td>${esc(s.por || '')}</td>
+      <td>${r ? `<span class="ret-pill encerrado">Aberta${r.protocolo ? ' · ' + esc(r.protocolo) : ''}</span>` : '<span class="ret-pill responder">A abrir</span>'}</td>
+      <td style="white-space:nowrap">${r ? `<button class="lnk" type="button" data-sdados="${esc(r.id)}">Ver ouvidoria</button>` : `<button class="btn primary" type="button" data-sabrir="${esc(s.id)}">Abrir ouvidoria</button>`} <button class="lnk" type="button" data-sprint="${esc(s.print)}">Print</button>${(s.retorno || []).map(a => ` <button class="lnk" type="button" data-sprint="${esc(a.caminho)}">Retorno da Cemig</button>`).join('')}</td></tr>`).join('')}</tbody></table>`
+      : `<p class="count-note">${solFiltro === 'abrir' ? 'Nenhuma ouvidoria esperando para ser aberta.' : 'Nenhuma solicitação aqui.'}</p>`;
+    $('solLista').querySelectorAll('[data-sdados]').forEach(b => b.onclick = () => abrirDados(b.dataset.sdados));
+    $('solLista').querySelectorAll('[data-sprint]').forEach(b => b.onclick = () => baixarArquivo({caminho: b.dataset.sprint, nome: b.dataset.sprint.split('/').pop()}, true));
+    $('solLista').querySelectorAll('[data-sabrir]').forEach(b => b.onclick = () => {
+      const s = solicitacoes.find(z => z.id === b.dataset.sabrir); if(!s) return;
+      try{ localStorage.setItem('ouv_prefill', JSON.stringify({reclamacao: s.tipo, valores: SOL.valoresGerar(s), lista: 'solicitação de ' + (s.por || ''), em: Date.now()})); }catch(e){}
+      aplicarPrefill();
+      if((s.retorno || []).length) levarRetorno(s.retorno);
+    });
+  }
+  // o retorno da Cemig anexado na solicitação já entra como anexo da ouvidoria no gerador
+  async function levarRetorno(lista){
+    try{
+      const slots = slotsDe(tipo().anexos(vals())), sl = slots.find(x => /resposta da cemig|retorno da cemig/i.test(x)) || slots[0]; if(!sl) return;
+      for(const a of lista){
+        const r = await ghFetch(`https://api.github.com/repos/${CFG.owner}/${CFG.repo}/contents/${a.caminho.split('/').map(encodeURIComponent).join('/')}?ref=${CFG.branch}`, {headers: {Accept: 'application/vnd.github.raw'}});
+        if(!r.ok) continue;
+        (anxPend[sl] = anxPend[sl] || []).push(new File([await r.blob()], a.nome, {type: a.tipo || 'application/pdf'}));
+      }
+      desenharAnexos(); toast('Retorno da Cemig da solicitação já está nos anexos.');
+    }catch(e){ toast('Não consegui trazer o retorno da Cemig: baixe na aba Ouvidorias solicitadas e anexe.'); }
+  }
+  // planilha "Ouvidorias Solicitadas": uma linha por solicitação (ID na coluna U); colunas Q–T a plataforma preenche quando a ouvidoria é registrada
+  async function sincronizarSolicitadas(manual){
+    const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Conecte o Google em Planilhas das ouvidorias primeiro.'); return; }
+    const pid = (linkSolicitadas().match(/\/d\/([\w-]{20,})/) || [])[1]; if(!pid) return;
+    try{
+      const meta = await g.planilha(pid), folha = meta.sheets[0], sid = folha.properties.sheetId, nome = `'${folha.properties.title.replace(/'/g, "''")}'`;
+      const m = await g.ler(pid, nome + '!A1:U');
+      const linhaDe = {}; m.forEach((l, i) => { if(i > 0 && l[20]) linhaDe[l[20]] = i; });
+      // linha livre: a primeira sem tipo de reclamação (as linhas já vêm formatadas)
+      let prox = 1; const livre = () => { while(m[prox] && (m[prox][2] || m[prox][20])) prox++; return prox++; };
+      const ped = [], txt = v => ({userEnteredValue: {stringValue: String(v == null ? '' : v)}});
+      solicitacoes.slice().sort((a, b) => String(a.criadoEm).localeCompare(String(b.criadoEm))).forEach(s => {
+        if(linhaDe[s.id] != null) return;
+        const lin = livre(), d = s.dados || {};
+        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 0, endColumnIndex: 3}, rows: [{values: [txt(fmtData(String(s.criadoEm).slice(0, 10))), txt(s.por), txt(SOL.TIPOS[s.tipo] || 'Reclamação ' + s.tipo)]}], fields: 'userEnteredValue'}});
+        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 4, endColumnIndex: 16}, rows: [{values: [d.nome, d.instalacao, d.uc, d.doc, d.usinaNome, d.usinaInst, d.usinaUc, d.protocolo || '', '', d.outros, s.motivo, d.obs].map(txt)}], fields: 'userEnteredValue'}});
+        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 20, endColumnIndex: 21}, rows: [{values: [txt(s.id)]}], fields: 'userEnteredValue'}});
+      });
+      if(ped.length) await g.lote(pid, ped);
+      if(window.Acompanhamento) await window.Acompanhamento.sincronizar({google: g, planilhas: [{nome: 'Ouvidorias Solicitadas', link: linkSolicitadas(), colorir: true, reclamacoes: [], desde: '2026-10-01'}], registros});
+      if(manual) toast('Planilha Ouvidorias Solicitadas atualizada ✓');
+    }catch(e){ toast('Planilha de solicitadas: ' + (e.message || e)); }
+  }
+  (function ligarSolicitadas(){
+    const drop = $('solDrop'); if(!drop) return;
+    $('solArq').onchange = () => { lerPrints([...$('solArq').files]); $('solArq').value = ''; };
+    ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('on'); }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('on'); }));
+    drop.addEventListener('drop', e => lerPrints([...(e.dataTransfer.files || [])]));
+    document.addEventListener('paste', e => {
+      if($('viewSolicitadas').hidden) return;
+      const fs = [...(e.clipboardData && e.clipboardData.items || [])].filter(it => /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean);
+      if(fs.length){ e.preventDefault(); lerPrints(fs.map((f, i) => new File([f], `print-${Date.now()}-${i}.png`, {type: f.type || 'image/png'}))); }
+    });
+    $('solSalvar').onclick = salvarSolicitacoes;
+    $('solSinc').onclick = () => sincronizarSolicitadas(true);
+    $('solFiltro').querySelectorAll('[data-sf]').forEach(b => b.onclick = () => { solFiltro = b.dataset.sf; $('solFiltro').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); renderSolicitadas(); });
+  })();
+
   // ---------- abas ----------
   function mostrar(view){
-    const v = ['registro', 'planilhas', 'retornos'].includes(view) ? view : 'gerar';
+    const v = ['registro', 'planilhas', 'retornos', 'solicitadas'].includes(view) ? view : 'gerar';
     $('viewGerar').hidden = v !== 'gerar';
     $('viewRegistro').hidden = v !== 'registro';
     $('viewPlanilhas').hidden = v !== 'planilhas';
     $('viewRetornos').hidden = v !== 'retornos';
+    $('viewSolicitadas').hidden = v !== 'solicitadas';
+    if(v === 'solicitadas'){ renderSolicitadas(); lerSolicitacoes().then(renderSolicitadas); }
     if(v === 'retornos'){ renderRetornos(); lerSemCadastro().then(renderRetornos); lerExemplos(); }
     if(v === 'planilhas') abrirPlanilhas();
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
