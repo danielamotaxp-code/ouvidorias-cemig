@@ -77,7 +77,8 @@
     if (d) { var mes = isNaN(+d[2]) ? MESES[d[2].toLowerCase()] : +d[2]; if (mes) c.dataISO = d[3] + '-' + pad(mes) + '-' + pad(+d[1]); }
 
     // número na Ouvidoria Cemig ("sob o nº 1261783960", "sob o protocolo de nº001262010754")
-    c.numOuvidoria = unicos(todos(/(?:Ouvidoria|manifesta\w+)[^.\n]{0,60}?n\s*[ºo°.]\s*:?\s*(\d{9,13})/gi, t).map(semZeros));
+    c.numOuvidoria = unicos(todos(/(?:Ouvidoria|manifesta\w+|reclama\w+)[^.\n]{0,60}?(?:n\s*[ºo°.]|numero)\s*:?\s*(\d{9,13})/gi, t)
+      .concat(todos(/Refer[eê]ncia\s+\d{8,}\s*-\s*(\d{9,13})/gi, t)).map(semZeros));
     // protocolo do portal (o que fica no registro): "Protocolo: 1794858233", "Número do Protocolo: …"
     c.protocolos = unicos(todos(/Protocolo:?\s*(\d{9,11})\b/gi, t).map(semZeros).concat(todos(/\b(179\d{7})\b/g, t)));
     c.ucs = unicos(todos(/unidade\s+consumidora\s*(?:n\s*[ºo°]\s*)?:?\s*([\d.\-]{11,20})/gi, t).map(dig).filter(function (x) { return x.length >= 10; }));

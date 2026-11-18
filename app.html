@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611181930"></script>
-<script src="retornos.js?v=202611181930"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181930"></script>
+<script src="solicitadas.js?v=202611181945"></script>
+<script src="retornos.js?v=202611181945"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181945"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -423,7 +423,7 @@
 <div id="viewSolicitadas" class="reg" hidden>
   <div class="reg-head"><div><h2>Ouvidorias solicitadas</h2>
     <p class="ret-sub">Os pedidos de ouvidoria agora são feitos só aqui (não mais no grupo). Escolha o tipo de reclamação e preencha os dados que ela pede. Se anexar o print do sistema, a plataforma preenche sozinha (e marca o que não conseguiu ler bem). Tudo vai formatado para a planilha <a id="solLinkPlan" target="_blank" rel="noopener">Ouvidorias Solicitadas</a>. Protocolo e demais dados a equipe busca na hora de abrir.</p></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="solSinc" type="button">Atualizar planilha</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="solAbrirPlan" target="_blank" rel="noopener">Abrir planilha</a><a class="btn" id="solExcel" rel="noopener">Baixar em Excel</a><button class="btn" id="solSinc" type="button">Atualizar planilha</button></div>
   </div>
   <div id="solG" class="gstatus"></div>
   <h3 class="ret-h3">Solicitar ouvidoria</h3>
@@ -465,7 +465,7 @@
 <div id="viewRetornos" class="reg" hidden>
   <div class="reg-head"><div><h2>Retorno das ouvidorias</h2>
     <p class="ret-sub">Anexe os PDFs que a Cemig manda. A plataforma lê cada um, acha a ouvidoria, marca o retorno no cadastro, avisa nas planilhas de ouvidorias e preenche a planilha <a id="retLinkPlan" target="_blank" rel="noopener">Retornos das Ouvidorias</a>. Confira o que ela entendeu antes de salvar.</p></div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="retSinc" type="button">Atualizar planilha de retornos</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="retAbrirPlan" target="_blank" rel="noopener">Abrir planilha</a><a class="btn" id="retExcel" rel="noopener">Baixar em Excel</a><button class="btn" id="retSinc" type="button">Atualizar planilha de retornos</button></div>
   </div>
   <div id="retG" class="gstatus"></div>
   <label class="ret-drop" id="retDrop"><input type="file" id="retArq" accept=".pdf,application/pdf" multiple hidden>
@@ -2465,6 +2465,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   // ---------- Retorno das ouvidorias (PDFs da Cemig) ----------
   const RET_PLANILHA_PADRAO = 'https://docs.google.com/spreadsheets/d/1uUQytd4TpLmxOibMlWKhlOAo_HZe4hAqgw9dA7_olHg/edit';
   const linkRetornos = () => fixos.planilhaRetornos || RET_PLANILHA_PADRAO;
+  // a versão mais recente da planilha do Google, baixada como Excel (.xlsx)
+  const linkExcel = link => { const id = (String(link).match(/\/d\/([\w-]{20,})/) || [])[1]; return id ? `https://docs.google.com/spreadsheets/d/${id}/export?format=xlsx` : link; };
   const RT = window.Retornos || {TIPOS: {}, SITUACOES: {}, NOVA: {}};
   const SEM = '__sem'; // retorno de ouvidoria feita antes da plataforma (não está no registro)
   const ARQ_SEM = 'retornos-sem-cadastro.json';
@@ -2648,7 +2650,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     .sort((a, b) => String(b.t.dataISO || b.t.recebidoEm || '').localeCompare(String(a.t.dataISO || a.t.recebidoEm || '')));
   function renderRetornos(){
     if(!$('retLista')) return;
-    $('retLinkPlan').href = linkRetornos();
+    $('retLinkPlan').href = $('retAbrirPlan').href = linkRetornos(); $('retExcel').href = linkExcel(linkRetornos());
     const g = G(), on = !!(g && g.conectado && g.conectado());
     $('retG').innerHTML = on ? '<span class="gdot"></span><span>Google conectado: a planilha Retornos das Ouvidorias é atualizada ao salvar.</span>'
       : '<span>Para preencher a planilha Retornos das Ouvidorias, conecte o Google em <b>Planilhas das ouvidorias</b> (botão Conectar Google). Os retornos ficam salvos mesmo assim.</span>';
@@ -2686,14 +2688,14 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     });
   }
   // planilha "Retornos das Ouvidorias": uma linha por retorno (acha a linha pelo ID do retorno, na última coluna)
-  const RET_COLS = 21; // A..U (U = ID do retorno)
+  const RET_COLS = 20; // A..T (S = link, T = ID do retorno)
   async function sincronizarRetornos(manual){
     const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Conecte o Google em Planilhas das ouvidorias primeiro.'); return; }
     const pid = (linkRetornos().match(/\/d\/([\w-]{20,})/) || [])[1]; if(!pid) return;
     try{
       const meta = await g.planilha(pid), folha = (meta.sheets || []).find(f => f.properties.title === 'Retornos') || meta.sheets[0];
       const sid = folha.properties.sheetId, nome = `'${folha.properties.title.replace(/'/g, "''")}'`;
-      const m = await g.ler(pid, nome + '!A1:U');
+      const m = await g.ler(pid, nome + '!A1:T');
       const linhaDe = {}; m.forEach((l, i) => { if(i > 0 && l[RET_COLS - 1]) linhaDe[l[RET_COLS - 1]] = i; });
       let prox = Math.max(m.length, 1);
       const cor = {verificar: {red: .99, green: .89, blue: .88}, nova_ouvidoria: {red: .98, green: .8, blue: .78}, responder: {red: .99, green: .89, blue: .88}, aguardando_cemig: {red: 1, green: .95, blue: .81}, respondido: {red: .89, green: .93, blue: .99}, encerrado: {red: .89, green: .96, blue: .91}};
@@ -2860,7 +2862,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   function renderSolicitadas(){
     if(!$('solLista')) return;
-    $('solLinkPlan').href = linkSolicitadas();
+    $('solLinkPlan').href = $('solAbrirPlan').href = linkSolicitadas(); $('solExcel').href = linkExcel(linkSolicitadas());
     const g = G(), on = !!(g && g.conectado && g.conectado());
     $('solG').innerHTML = on ? '<span class="gdot"></span><span>Google conectado: a planilha Ouvidorias Solicitadas é atualizada ao cadastrar.</span>'
       : '<span>Para mandar para a planilha Ouvidorias Solicitadas, conecte o Google em <b>Planilhas das ouvidorias</b>. As solicitações ficam salvas mesmo assim.</span>';
