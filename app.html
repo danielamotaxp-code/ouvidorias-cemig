@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611181800"></script>
-<script src="retornos.js?v=202611181800"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181800"></script>
+<script src="solicitadas.js?v=202611181830"></script>
+<script src="retornos.js?v=202611181830"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181830"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -414,15 +414,13 @@
 <!-- =============== ABA OUVIDORIAS SOLICITADAS =============== -->
 <div id="viewSolicitadas" class="reg" hidden>
   <div class="reg-head"><div><h2>Ouvidorias solicitadas</h2>
-    <p class="ret-sub">Os pedidos de ouvidoria agora são feitos só aqui (não mais no grupo). Anexe o print do sistema, escolha o tipo de reclamação e o motivo. A plataforma lê o print, mostra o que cada reclamação precisa e manda tudo formatado para a planilha <a id="solLinkPlan" target="_blank" rel="noopener">Ouvidorias Solicitadas</a>. Protocolo e demais dados a equipe busca na hora de abrir.</p></div>
+    <p class="ret-sub">Os pedidos de ouvidoria agora são feitos só aqui (não mais no grupo). Escolha o tipo de reclamação e preencha os dados que ela pede. Se anexar o print do sistema, a plataforma preenche sozinha (e marca o que não conseguiu ler bem). Tudo vai formatado para a planilha <a id="solLinkPlan" target="_blank" rel="noopener">Ouvidorias Solicitadas</a>. Protocolo e demais dados a equipe busca na hora de abrir.</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="solSinc" type="button">Atualizar planilha</button></div>
   </div>
   <div id="solG" class="gstatus"></div>
-  <textarea id="solMsg" hidden></textarea>
-  <label class="ret-drop" id="solDrop" tabindex="0"><input type="file" id="solArq" accept="image/*,.pdf" multiple hidden>
-    <b>Cole o print aqui (Ctrl+V) ou arraste</b><span>ou clique para escolher. Um print por cliente; pode mandar vários. Só o print e o tipo de reclamação bastam: o resto a equipe busca na plataforma da empresa.</span></label>
-  <div id="solFila"></div>
-  <div id="solAcoes" class="ret-acoes" hidden><button class="btn primary" id="solSalvar" type="button">Cadastrar solicitações</button><span id="solMsgSalvar" class="ret-msg"></span></div>
+  <h3 class="ret-h3">Solicitar ouvidoria</h3>
+  <div id="solForm" class="ret-card"></div>
+  <div class="ret-acoes"><button class="btn primary" id="solSalvar" type="button">Solicitar ouvidoria</button><button class="btn" id="solLimpar" type="button">Limpar</button><span id="solMsgSalvar" class="ret-msg"></span></div>
   <h3 class="ret-h3">Solicitações</h3>
   <div class="chips" id="solFiltro">
     <button class="chip on" data-sf="abrir">A abrir</button>
@@ -2739,90 +2737,87 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const T = await carregarOcr();
     return (await T.recognize(cv)).data.text;
   }
-  async function lerPrints(files){
-    const m = SOL.lerMensagem ? SOL.lerMensagem($('solMsg').value) : {};
-    files.filter(f => /^image\//.test(f.type)).forEach(f => solFila.push({file: f, url: URL.createObjectURL(f), estado: 'Lendo o print…', tipo: m.tipo || '', motivo: m.motivo || '', dados: {}}));
-    desenharSolFila();
-    for(const x of solFila.filter(z => !z.lido)){
-      try{ const c = await lerPrintArquivo(x.file); x.lidoOk = true; x.conf = c.conf || {}; delete c.conf; x.dados = Object.assign({}, c, x.dados); x.estado = Object.values(x.conf).includes('confira') ? 'Lido. Confira os números marcados em laranja.' : 'Lido e conferido ✓'; }
-      catch(e){ x.estado = 'Não consegui ler o print: preencha os campos à mão.'; }
-      x.lido = true; desenharSolFila();
-    }
+  // ---- formulário de pedido (um pedido por vez) ----
+  const USINA_CAMPOS = ['usinaNome', 'usinaInst', 'usinaUc'], CLI_CAMPOS = ['nome', 'instalacao', 'uc', 'doc'];
+  const novoPedido = () => ({tipo: '', motivo: '', dados: {}, conf: {}, editado: {}, retorno: [], estado: {}});
+  let solAtual = novoPedido();
+  const ehUsina = n => +n >= 1 && +n <= 4;
+  // campos que aparecem para a reclamação: os que ela pede + o nome de quem é + outros/observação
+  function camposDoTipo(n){
+    const pede = SOL.PEDE[+n] || [];
+    const c = pede.slice();
+    if(pede.some(k => USINA_CAMPOS.includes(k)) && !c.includes('usinaNome')) c.unshift('usinaNome');
+    if(pede.some(k => CLI_CAMPOS.includes(k)) && !c.includes('nome')) c.unshift('nome');
+    ['outros', 'obs'].forEach(k => { if(!c.includes(k)) c.push(k); });
+    return c;
   }
-  function desenharSolFila(){
-    const box = $('solFila'); if(!box) return;
-    box.innerHTML = solFila.map((x, i) => {
-      const pede = SOL.PEDE[+x.tipo] || [], nao = SOL.NAO_VALE[+x.tipo] || [];
-      return `<div class="ret-card ${x.salvo ? 'ok' : ''}"><div class="top"><b>🖼 Print ${i + 1}</b><span class="st">${x.salvo ? '✓ Cadastrada' : esc(x.estado || '')}${x.salvo ? '' : ` · <button class="lnk" type="button" data-stira="${i}">Tirar</button>`}</span></div>
-        <div class="sol-card"><a href="${x.url}" target="_blank" rel="noopener"><img src="${x.url}" alt="print"></a><div class="ret-grid">
-          <label class="full">Tipo de reclamação <select data-sk="tipo" data-si="${i}"><option value="">— escolha —</option>${Object.keys(SOL.TIPOS).map(n => `<option value="${n}" ${+x.tipo === +n ? 'selected' : ''}>${esc(SOL.TIPOS[n])}</option>`).join('')}</select></label>
-          <label class="full pede">Motivo <input data-sk="motivo" data-si="${i}" value="${esc(x.motivo || '')}" placeholder="Ex.: atraso na injeção"></label>
-          ${x.tipo ? `<span class="st full" style="grid-column:1/-1">Dados lidos do print (opcionais, só para conferência). Para esta reclamação importam: <b>${esc(pede.map(k => (SOL_CAMPOS.find(c => c[0] === k) || [k, k])[1]).join(', '))}</b>. O que faltar a equipe busca.</span>` : ''}
-          <label class="full ${(SOL.RETORNO || {})[+x.tipo] ? 'pede' : ''}">Retorno da Cemig ${(SOL.RETORNO || {})[+x.tipo] ? '<b>(obrigatório nesta reclamação)</b>: ' + esc(SOL.RETORNO[+x.tipo]) : '<small>(opcional)</small>'}
-            <input type="file" data-sret="${i}" accept=".pdf,image/*" multiple>${(x.retorno || []).length ? `<small>📎 ${x.retorno.map(f => esc(f.name)).join(', ')}</small>` : ''}</label>
-          ${+x.tipo === 5 ? `<label class="full pede">Print da usina <b>(obrigatório nesta reclamação)</b> — separado do print do cliente para não confundir
-            <input type="file" data-susina="${i}" accept="image/*">${x.usinaPrint ? `<small>🖼 ${esc(x.usinaPrint.name)} · ${esc(x.usinaEstado || '')}</small>` : ''}</label>` : ''}
-          ${SOL_CAMPOS.map(([k, rot]) => { const cf = (x.conf || {})[k]; return `<label class="${pede.includes(k) ? 'pede' : nao.includes(k) ? 'naovale' : ''}${k === 'outros' || k === 'obs' ? ' full' : ''}${cf ? ' cf-' + cf : ''}">${rot}${cf === 'ok' ? ' <small class="cf">✓ conferido</small>' : cf === 'confira' ? ' <small class="cf">confira no print</small>' : ''}<input data-sk="${k}" data-si="${i}" value="${esc(x.dados[k] || '')}"></label>`; }).join('')}
-          ${(x.conf || {}).base ? `<span class="st full" style="grid-column:1/-1">✓ Instalação encontrada na base de clientes: <b>${esc(x.conf.base)}</b></span>` : ''}
-        </div></div></div>`;
-    }).join('');
+  const obrigatorios = n => (SOL.PEDE[+n] || []).filter(k => k !== 'outros');
+  async function lerPrintPara(papel, f){
+    const x = solAtual; x.estado[papel] = 'Lendo o print…'; x[papel === 'usina' ? 'usinaPrint' : 'file'] = f; desenharSolForm();
+    try{
+      const c = await lerPrintArquivo(f), cf = c.conf || {}, d = x.dados, pegar = (k, v, ck) => { if(v && !x.editado[k]){ d[k] = v; if(ck) x.conf[k] = ck; } };
+      if(papel === 'usina'){ pegar('usinaNome', c.nome); pegar('usinaInst', c.instalacao, cf.instalacao); pegar('usinaUc', c.uc, cf.uc); }
+      else {
+        pegar('nome', c.nome); pegar('instalacao', c.instalacao, cf.instalacao); pegar('uc', c.uc, cf.uc); pegar('doc', c.doc, cf.doc);
+        // o print do cliente também traz a usina dele
+        if(!x.usinaPrint){ pegar('usinaNome', c.usinaNome); pegar('usinaInst', c.usinaInst, cf.usinaInst); pegar('usinaUc', c.usinaUc, cf.usinaUc); }
+        if(cf.base) x.conf.base = cf.base;
+      }
+      x.lidoOk = true;
+      x.estado[papel] = Object.values(cf).includes('confira') ? 'Lido. Confira os números marcados em laranja.' : 'Lido e conferido ✓';
+    }catch(e){ x.lidoFalhou = true; x.estado[papel] = 'Não consegui ler o print: preencha os campos.'; }
+    desenharSolForm();
+  }
+  function desenharSolForm(){
+    const box = $('solForm'); if(!box) return;
+    const x = solAtual, n = +x.tipo, obr = obrigatorios(n), ROT = Object.fromEntries(SOL_CAMPOS);
+    const campo = k => { const cf = x.conf[k], req = obr.includes(k); return `<label class="${req ? 'pede' : ''}${k === 'outros' || k === 'obs' ? ' full' : ''}${cf ? ' cf-' + cf : ''}">${esc(ROT[k] || k)}${req ? ' *' : ' <small>(opcional)</small>'}${cf === 'ok' ? ' <small class="cf">✓ conferido</small>' : cf === 'confira' ? ' <small class="cf">confira no print</small>' : ''}<input data-sk="${k}" value="${esc(x.dados[k] || '')}"></label>`; };
+    const printBox = (papel, rot, f) => `<label class="full">${rot} <small>(opcional — preenche os campos sozinho; pode colar com Ctrl+V)</small><input type="file" data-sprint-in="${papel}" accept="image/*">${f ? `<small>🖼 ${esc(f.name)} · ${esc(x.estado[papel] || '')}</small>` : ''}</label>`;
+    const precisaUsina = n && camposDoTipo(n).some(k => USINA_CAMPOS.includes(k)), precisaCli = n && camposDoTipo(n).some(k => CLI_CAMPOS.includes(k));
+    box.innerHTML = `<div class="ret-grid">
+      <label class="full pede">Tipo de reclamação * <select data-sk="tipo"><option value="">— escolha —</option>${Object.keys(SOL.TIPOS).map(k => `<option value="${k}" ${n === +k ? 'selected' : ''}>${esc(SOL.TIPOS[k])}</option>`).join('')}</select></label>
+      <label class="full pede">Motivo * <input data-sk="motivo" value="${esc(x.motivo)}" placeholder="Ex.: atraso na injeção"></label>
+      ${n ? `
+        ${precisaCli ? printBox('cliente', 'Print do cliente', x.file) : ''}
+        ${precisaUsina ? printBox('usina', 'Print da usina', x.usinaPrint) : ''}
+        <span class="st full" style="grid-column:1/-1">Preencha os campos com * . Protocolo e o resto a equipe busca na hora de abrir.</span>
+        ${camposDoTipo(n).map(campo).join('')}
+        ${x.conf.base ? `<span class="st full" style="grid-column:1/-1">✓ Instalação encontrada na base de clientes: <b>${esc(x.conf.base)}</b></span>` : ''}
+        ${(SOL.RETORNO || {})[n] ? `<label class="full pede">Retorno da Cemig * <small>${esc(SOL.RETORNO[n])}</small><input type="file" data-sret accept=".pdf,image/*" multiple>${x.retorno.length ? `<small>📎 ${x.retorno.map(f => esc(f.name)).join(', ')}</small>` : ''}</label>` : ''}
+      ` : '<span class="st full" style="grid-column:1/-1">Escolha o tipo de reclamação para ver os dados que ela precisa.</span>'}
+    </div>`;
     box.querySelectorAll('[data-sk]').forEach(el => el.onchange = el.oninput = () => {
-      const x = solFila[+el.dataset.si]; if(!x || x.salvo) return; const k = el.dataset.sk;
-      if(k === 'tipo' || k === 'motivo') x[k] = el.value; else { x.dados[k] = el.value; (x.editado = x.editado || {})[k] = true; }
-      if(k === 'tipo') desenharSolFila();
+      const k = el.dataset.sk;
+      if(k === 'tipo' || k === 'motivo') x[k] = el.value; else { x.dados[k] = el.value; x.editado[k] = true; }
+      if(k === 'tipo' && el.type !== 'text') desenharSolForm();
     });
-    box.querySelectorAll('[data-susina]').forEach(el => el.onchange = async () => {
-      const x = solFila[+el.dataset.susina], f = el.files[0]; if(!x || x.salvo || !f) return;
-      x.usinaPrint = f; x.usinaEstado = 'lendo…'; desenharSolFila();
-      try{
-        const c = await lerPrintArquivo(f), cf = c.conf || {};
-        // no print da usina, o "cliente" do topo é a própria usina
-        x.dados.usinaNome = c.nome || x.dados.usinaNome; x.dados.usinaInst = c.instalacao || x.dados.usinaInst; x.dados.usinaUc = c.uc || x.dados.usinaUc;
-        x.conf = Object.assign({}, x.conf, {usinaInst: cf.instalacao, usinaUc: cf.uc});
-        x.usinaEstado = Object.values({a: cf.instalacao, b: cf.uc}).includes('confira') ? 'confira os números da usina' : 'lido ✓';
-      }catch(e){ x.usinaEstado = 'não consegui ler: preencha os dados da usina'; }
-      desenharSolFila();
-    });
-    box.querySelectorAll('[data-sret]').forEach(el => el.onchange = () => { const x = solFila[+el.dataset.sret]; if(x && !x.salvo){ x.retorno = (x.retorno || []).concat([...el.files]); desenharSolFila(); } });
-    box.querySelectorAll('[data-stira]').forEach(b => b.onclick = () => { solFila.splice(+b.dataset.stira, 1); desenharSolFila(); });
-    $('solAcoes').hidden = !solFila.some(x => x.lido && !x.salvo);
+    box.querySelectorAll('[data-sprint-in]').forEach(el => el.onchange = () => { if(el.files[0]) lerPrintPara(el.dataset.sprintIn, el.files[0]); });
+    box.querySelectorAll('[data-sret]').forEach(el => el.onchange = () => { x.retorno = x.retorno.concat([...el.files]); desenharSolForm(); });
   }
   async function salvarSolicitacoes(){
-    const prontos = solFila.filter(x => x.lido && !x.salvo);
-    const semMotivo = prontos.find(x => x.tipo && !String(x.motivo || '').trim());
-    if(semMotivo){ $('solMsgSalvar').textContent = 'Escreva o motivo de cada pedido (ex.: atraso na injeção).'; return; }
-    const falta = prontos.find(x => !x.tipo || ((SOL.RETORNO || {})[+x.tipo] && !(x.retorno || []).length) || (+x.tipo === 5 && !x.usinaPrint));
-    if(falta){ $('solMsgSalvar').textContent = !falta.tipo ? 'Escolha o tipo de reclamação de cada print.' : +falta.tipo === 5 && !falta.usinaPrint ? 'Na reclamação 5, anexe também o print da usina.' : `Na reclamação ${falta.tipo}, anexe o retorno da Cemig.`; return; }
+    const x = solAtual, n = +x.tipo, ROT = Object.fromEntries(SOL_CAMPOS), msg = t => { $('solMsgSalvar').textContent = t; };
+    if(!n) return msg('Escolha o tipo de reclamação.');
+    if(!String(x.motivo || '').trim()) return msg('Escreva o motivo (ex.: atraso na injeção).');
+    const faltam = obrigatorios(n).filter(k => !String(x.dados[k] || '').trim());
+    if(faltam.length) return msg('Preencha: ' + faltam.map(k => ROT[k] || k).join(', ') + '.');
+    if((SOL.RETORNO || {})[n] && !x.retorno.length) return msg(`Na reclamação ${n}, anexe o retorno da Cemig.`);
     $('solSalvar').disabled = true;
     try{
-      const novas = [];
-      for(const x of prontos){
-        const id = novoId(), caminho = `anexos/solicitacoes/${id.slice(0, 8)}-${nomeSeguro(x.file.name || 'print.png')}`;
-        $('solMsgSalvar').textContent = 'Enviando o print…';
-        await subirArquivo(caminho, x.file, `Ouvidoria solicitada (${quem()})`);
-        const d = Object.assign({}, x.dados); ['nome', 'usinaNome', 'outros', 'obs'].forEach(k => d[k] = String(d[k] || '').trim()); ['instalacao', 'uc', 'doc', 'usinaInst', 'usinaUc'].forEach(k => d[k] = String(d[k] || '').replace(/\D/g, ''));
-        let printUsina = '';
-        if(x.usinaPrint){ printUsina = `anexos/solicitacoes/${id.slice(0, 8)}-usina-${nomeSeguro(x.usinaPrint.name || 'usina.png')}`; await subirArquivo(printUsina, x.usinaPrint, `Print da usina da solicitação (${quem()})`); }
-        const retorno = [];
-        for(const f of (x.retorno || [])){
-          const c = `anexos/solicitacoes/${id.slice(0, 8)}-retorno-${nomeSeguro(f.name || 'retorno.pdf')}`;
-          $('solMsgSalvar').textContent = 'Enviando o retorno da Cemig…';
-          await subirArquivo(c, f, `Retorno da Cemig da solicitação (${quem()})`);
-          retorno.push({caminho: c, nome: f.name, tipo: f.type || '', tamanho: f.size});
-        }
-        if(retorno.length && !d.outros) d.outros = 'Retorno da Cemig anexado na plataforma';
-        const ROT = Object.fromEntries(SOL_CAMPOS);
-        // problema na leitura: campo que não fechou e o pedido não corrigiu à mão, ou print que não deu para ler
-        const duvida = !x.lidoOk ? ['print não lido'] : Object.keys(x.conf || {}).filter(k => x.conf[k] === 'confira' && !x.editado?.[k] && d[k]).map(k => ROT[k] || k);
-        if(duvida.length) d.obs = [d.obs, '⚠ Conferir no print: ' + duvida.join(', ')].filter(Boolean).join(' · ');
-        novas.push({id, criadoEm: new Date().toISOString(), por: quem(), tipo: +x.tipo, motivo: (x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida});
-        x.salvo = true; desenharSolFila();
-      }
-      const d = await alterarArqJson(ARQ_SOL, d => Object.assign({}, d, {solicitacoes: (d.solicitacoes || []).concat(novas)}), `${novas.length} ouvidoria(s) solicitada(s) (${quem()})`);
-      solicitacoes = d.solicitacoes;
-      $('solMsgSalvar').textContent = `${novas.length} solicitação(ões) cadastrada(s).`; $('solMsg').value = '';
+      const id = novoId(), sobe = async (f, nome, rot) => { if(!f) return ''; const c = `anexos/solicitacoes/${id.slice(0, 8)}-${nome}-${nomeSeguro(f.name || 'arquivo')}`; msg('Enviando ' + rot + '…'); await subirArquivo(c, f, `${rot} da solicitação (${quem()})`); return c; };
+      const caminho = await sobe(x.file, 'cliente', 'Print do cliente'), printUsina = await sobe(x.usinaPrint, 'usina', 'Print da usina');
+      const retorno = [];
+      for(const f of x.retorno){ const c = await sobe(f, 'retorno', 'Retorno da Cemig'); retorno.push({caminho: c, nome: f.name, tipo: f.type || '', tamanho: f.size}); }
+      const d = Object.assign({}, x.dados); ['nome', 'usinaNome', 'outros', 'obs'].forEach(k => d[k] = String(d[k] || '').trim()); ['instalacao', 'uc', 'doc', 'usinaInst', 'usinaUc'].forEach(k => d[k] = String(d[k] || '').replace(/\D/g, ''));
+      if(retorno.length && !d.outros) d.outros = 'Retorno da Cemig anexado na plataforma';
+      // problema na leitura do print: campo que não fechou e ninguém corrigiu à mão
+      const duvida = (x.lidoFalhou ? ['print não lido'] : []).concat(Object.keys(x.conf).filter(k => x.conf[k] === 'confira' && !x.editado[k] && d[k]).map(k => ROT[k] || k));
+      if(duvida.length) d.obs = [d.obs, '⚠ Conferir no print: ' + duvida.join(', ')].filter(Boolean).join(' · ');
+      const nova = {id, criadoEm: new Date().toISOString(), por: quem(), tipo: n, motivo: x.motivo.trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida};
+      const dd = await alterarArqJson(ARQ_SOL, o => Object.assign({}, o, {solicitacoes: (o.solicitacoes || []).concat([nova])}), `Ouvidoria solicitada: reclamação ${n} (${quem()})`);
+      solicitacoes = dd.solicitacoes; solAtual = novoPedido(); desenharSolForm();
+      msg('Ouvidoria solicitada ✓');
       await sincronizarSolicitadas(false);
-    }catch(e){ $('solMsgSalvar').textContent = 'Não consegui cadastrar: ' + (e.message || e.status || e); }
+    }catch(e){ msg('Não consegui salvar: ' + (e.message || e.status || e)); }
     $('solSalvar').disabled = false; renderSolicitadas();
   }
   // a ouvidoria que atendeu a solicitação (mesma reclamação, mesma instalação, registrada depois do pedido)
@@ -2844,7 +2839,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       <td>${esc(s.dados.nome || s.dados.usinaNome || '')}<br><small>${s.dados.instalacao ? 'Inst. ' + esc(s.dados.instalacao) : ''}${s.dados.uc ? ' · UC ' + esc(s.dados.uc) : ''}${s.dados.usinaInst ? ' · Usina ' + esc(s.dados.usinaInst) : ''}</small></td>
       <td>${esc(s.motivo || '')}${(s.leituraDuvida || []).length ? `<br><span class="ret-pill responder" title="A leitura do print deu dúvida">⚠ Conferir no print: ${esc(s.leituraDuvida.join(', '))}</span>` : ''}</td><td>${esc(s.por || '')}</td>
       <td>${r ? `<span class="ret-pill encerrado">Aberta${r.protocolo ? ' · ' + esc(r.protocolo) : ''}</span>` : '<span class="ret-pill responder">A abrir</span>'}</td>
-      <td style="white-space:nowrap">${r ? `<button class="lnk" type="button" data-sdados="${esc(r.id)}">Ver ouvidoria</button>` : `<button class="btn primary" type="button" data-sabrir="${esc(s.id)}">Abrir ouvidoria</button>`} <button class="lnk" type="button" data-sprint="${esc(s.print)}">Print${s.printUsina ? ' do cliente' : ''}</button>${s.printUsina ? ` <button class="lnk" type="button" data-sprint="${esc(s.printUsina)}">Print da usina</button>` : ''}${(s.retorno || []).map(a => ` <button class="lnk" type="button" data-sprint="${esc(a.caminho)}">Retorno da Cemig</button>`).join('')}</td></tr>`).join('')}</tbody></table>`
+      <td style="white-space:nowrap">${r ? `<button class="lnk" type="button" data-sdados="${esc(r.id)}">Ver ouvidoria</button>` : `<button class="btn primary" type="button" data-sabrir="${esc(s.id)}">Abrir ouvidoria</button>`} ${s.print ? `<button class="lnk" type="button" data-sprint="${esc(s.print)}">Print do cliente</button>` : ''}${s.printUsina ? ` <button class="lnk" type="button" data-sprint="${esc(s.printUsina)}">Print da usina</button>` : ''}${(s.retorno || []).map(a => ` <button class="lnk" type="button" data-sprint="${esc(a.caminho)}">Retorno da Cemig</button>`).join('')}</td></tr>`).join('')}</tbody></table>`
       : `<p class="count-note">${solFiltro === 'abrir' ? 'Nenhuma ouvidoria esperando para ser aberta.' : 'Nenhuma solicitação aqui.'}</p>`;
     $('solLista').querySelectorAll('[data-sdados]').forEach(b => b.onclick = () => abrirDados(b.dataset.sdados));
     $('solLista').querySelectorAll('[data-sprint]').forEach(b => b.onclick = () => baixarArquivo({caminho: b.dataset.sprint, nome: b.dataset.sprint.split('/').pop()}, true));
@@ -2892,16 +2887,16 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }catch(e){ toast('Planilha de solicitadas: ' + (e.message || e)); }
   }
   (function ligarSolicitadas(){
-    const drop = $('solDrop'); if(!drop) return;
-    $('solArq').onchange = () => { lerPrints([...$('solArq').files]); $('solArq').value = ''; };
-    ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('on'); }));
-    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('on'); }));
-    drop.addEventListener('drop', e => lerPrints([...(e.dataTransfer.files || [])]));
+    if(!$('solForm')) return;
+    desenharSolForm();
     document.addEventListener('paste', e => {
-      if($('viewSolicitadas').hidden) return;
-      const fs = [...(e.clipboardData && e.clipboardData.items || [])].filter(it => /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean);
-      if(fs.length){ e.preventDefault(); lerPrints(fs.map((f, i) => new File([f], `print-${Date.now()}-${i}.png`, {type: f.type || 'image/png'}))); }
+      if($('viewSolicitadas').hidden || !solAtual.tipo) return;
+      const f = [...(e.clipboardData && e.clipboardData.items || [])].filter(it => /^image\//.test(it.type)).map(it => it.getAsFile()).filter(Boolean)[0];
+      if(!f) return; e.preventDefault();
+      const papel = camposDoTipo(solAtual.tipo).some(k => CLI_CAMPOS.includes(k)) && !solAtual.file ? 'cliente' : 'usina';
+      lerPrintPara(papel, new File([f], `print-${papel}-${Date.now()}.png`, {type: f.type || 'image/png'}));
     });
+    $('solLimpar').onclick = () => { solAtual = novoPedido(); $('solMsgSalvar').textContent = ''; desenharSolForm(); };
     $('solSalvar').onclick = salvarSolicitacoes;
     $('solSinc').onclick = () => sincronizarSolicitadas(true);
     $('solFiltro').querySelectorAll('[data-sf]').forEach(b => b.onclick = () => { solFiltro = b.dataset.sf; $('solFiltro').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); renderSolicitadas(); });
