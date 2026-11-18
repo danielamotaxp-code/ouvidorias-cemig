@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611180930"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -1792,16 +1793,29 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   async function atualizarListaFaturas(r){
     try{
-      if(+r.reclamacao !== 6) return;
+      if(!String(r.instalacao || '').replace(/\D/g, '')) return;
       if(!G() || !G().conectado || !G().conectado()){
         const f = filaFaturas(); if(!f.includes(r.id)){ f.push(r.id); store.set('ouv_fila_fat', f); }
-        setTimeout(() => toast('Para a linha do cliente ficar verde na planilha de ouvidorias das faturas, clique em "Atualizar planilha Google" (no Registro de protocolos) e entre com o Google.'), 2500);
+        setTimeout(() => toast('Para atualizar as planilhas de ouvidorias (Faturas e Contratos), clique em "Atualizar planilha Google" (no Registro de protocolos) e entre com o Google.'), 2500);
         return;
       }
-      const k = String(r.instalacao || '').replace(/\D/g, '').replace(/^0+/, ''); if(!k) return;
       const resp = await ghFetch(`https://api.github.com/repos/${CFG.owner}/faturas-contratos-acessos/contents/dados/ouvidorias.json?t=${Date.now()}`);
       if(!resp.ok) return;
       const d = JSON.parse(b64dec((await resp.json()).content || '') || '{}');
+      // outras planilhas (Thiago, Reclamação 7, Grupo…): só os clientes que já estão nelas
+      if((d.acompanhadas || []).length && window.Acompanhamento){
+        try{
+          const res = await window.Acompanhamento.sincronizar({google: G(), planilhas: d.acompanhadas, registros, instalacoes: [r.instalacao]});
+          const ok = res.filter(x => x.linhas > 0).map(x => x.nome);
+          if(ok.length) toast(`Atualizado também em: ${ok.join(', ')} ✓`);
+        }catch(e){}
+      }
+      if(+r.reclamacao === 6) await atualizarAbaR6(r, d);
+    }catch(e){ /* sem Google ou sem acesso: as planilhas são atualizadas depois pela tela de Faturas e Contratos */ }
+  }
+  async function atualizarAbaR6(r, d){
+    try{
+      const k = String(r.instalacao || '').replace(/\D/g, '').replace(/^0+/, ''); if(!k) return;
       const pid = (String(d.planilha || '').match(/\/d\/([\w-]+)/) || [])[1]; if(!pid) return;
       const hoje = isoHoje();
       const menos3 = iso => { const x = new Date(iso + 'T12:00:00'); x.setDate(x.getDate() - 3); return x.toISOString().slice(0, 10); };
