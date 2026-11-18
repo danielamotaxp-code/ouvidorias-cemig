@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181210"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181225"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -1847,6 +1847,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         const ini = Math.max(0, Math.min(cc >= 0 ? cc : 0, ci)), fim = Math.max(...cs, ci) + 1;
         pedidos.push({repeatCell: {range: {sheetId, startRowIndex: j, endRowIndex: j + 1, startColumnIndex: ini, endColumnIndex: fim},
           cell: {userEnteredFormat: {backgroundColor: pend ? {red: 0.992, green: 0.851, blue: 0.663} : {red: 0.204, green: 0.659, blue: 0.325}}}, fields: 'userEnteredFormat.backgroundColor'}});
+        [cc, ...cs].filter(c => c >= 0).forEach(c => pedidos.push({repeatCell: {range: {sheetId, startRowIndex: j, endRowIndex: j + 1, startColumnIndex: c, endColumnIndex: c + 1},
+          cell: {userEnteredFormat: {horizontalAlignment: 'CENTER', textFormat: {bold: false}}}, fields: 'userEnteredFormat.horizontalAlignment,userEnteredFormat.textFormat.bold'}}));
         await g.lote(pid, pedidos);
         toast(`Planilha de ouvidorias das faturas atualizada (aba ${l.aba}) ✓`);
         return;
