@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611181830"></script>
-<script src="retornos.js?v=202611181830"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181830"></script>
+<script src="solicitadas.js?v=202611181900"></script>
+<script src="retornos.js?v=202611181900"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181900"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -303,6 +303,14 @@
   .ret-resp{display:grid;gap:6px;margin-top:6px}
   .ret-resp textarea{font:inherit;border:1px solid var(--line);border-radius:8px;padding:7px;min-height:60px}
 
+  .sol-ajuda{background:#f6f9f4;border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin:0 0 12px;font-size:14px}
+  .sol-ajuda ol{margin:6px 0 6px 20px;padding:0}.sol-ajuda li{margin:3px 0}
+  .sol-ajuda summary{cursor:pointer;font-weight:600;color:var(--accent,#2e7d32);margin-top:4px}
+  .sol-exemplo{position:relative;background:#fff;border:1px solid #ddd;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:14px 16px;margin:10px 0;font:13px/1.45 Arial,sans-serif;color:#222;max-width:900px}
+  .sol-exemplo .x{position:absolute;right:14px;top:10px;color:#888}
+  .sol-exemplo .con{margin:10px 0 12px;display:flex;align-items:center;gap:8px}.sol-exemplo .con i{width:16px;height:16px;border-radius:50%;background:#138a13;display:inline-block}
+  .sol-exemplo .g{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 18px}.sol-exemplo .g small{display:block;font-size:12.5px;color:#333}.sol-exemplo .g div{font-size:11.5px;color:#555}
+  @media (max-width:720px){.sol-exemplo .g{grid-template-columns:repeat(2,1fr)}}
   .sol-msg{width:100%;min-height:56px;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
   .sol-card{display:grid;grid-template-columns:minmax(200px,320px) 1fr;gap:14px}
   .sol-card img{width:100%;border:1px solid var(--line);border-radius:8px;cursor:zoom-in}
@@ -419,6 +427,29 @@
   </div>
   <div id="solG" class="gstatus"></div>
   <h3 class="ret-h3">Solicitar ouvidoria</h3>
+  <div class="sol-ajuda">
+    <b>Como solicitar</b>
+    <ol>
+      <li>Escolha o <b>tipo de reclamação</b>.</li>
+      <li>O <b>motivo</b> é opcional: cada reclamação já tem o seu motivo. Escreva só se quiser explicar algo a mais.</li>
+      <li>Depois, escolha um dos jeitos: <b>anexe o print da tela</b> do cliente ou da usina (do sistema da empresa, como o exemplo abaixo) <b>ou preencha os campos com *</b>. Com o print, a plataforma tenta preencher sozinha e marca em laranja o que não conseguiu ler bem.</li>
+      <li>Na reclamação 5, anexe também o <b>retorno da Cemig</b>.</li>
+    </ol>
+    <details><summary>Ver exemplo do print (dados fictícios)</summary>
+      <div class="sol-exemplo" aria-label="Exemplo do print da tela do cliente">
+        <div class="x">✕</div>
+        <b>ID: 1234</b><br><b>Maria Exemplo da Silva</b><br>
+        <span>N.º Instalação: 3000000000 &nbsp;●&nbsp; N.º Consumidora: 1234.5678.90-12</span>
+        <div class="con"><i></i> Conectado a distribuidora</div>
+        <div class="g">
+          <div><small>Total de kwh:</small>150 kwh</div><div><small>Valor:</small>R$ 100,00</div><div><small>Data de assinatura:</small>01/01/2026</div><div><small>Backoffice:</small>Nome do backoffice</div>
+          <div><small>Titular:</small>Maria Exemplo da Silva</div><div><small>CPF:</small>000.000.000-00</div><div><small>Telefone:</small>(31) 90000-0000</div><div><small>Email:</small>maria@exemplo.com</div>
+          <div><small>Nome da usina:</small>USINA EXEMPLO</div><div><small>N.º Usina Instalação:</small>3011111111</div><div><small>N.º Usina Consumidora:</small>1200000000000</div><div></div>
+        </div>
+      </div>
+      <p class="ret-sub">É a tela que abre ao clicar no cliente (ou na usina) no sistema da empresa. Mande o print inteiro, em tamanho normal. A miniatura do WhatsApp sai pequena demais para ler.</p>
+    </details>
+  </div>
   <div id="solForm" class="ret-card"></div>
   <div class="ret-acoes"><button class="btn primary" id="solSalvar" type="button">Solicitar ouvidoria</button><button class="btn" id="solLimpar" type="button">Limpar</button><span id="solMsgSalvar" class="ret-msg"></span></div>
   <h3 class="ret-h3">Solicitações</h3>
@@ -2776,11 +2807,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const precisaUsina = n && camposDoTipo(n).some(k => USINA_CAMPOS.includes(k)), precisaCli = n && camposDoTipo(n).some(k => CLI_CAMPOS.includes(k));
     box.innerHTML = `<div class="ret-grid">
       <label class="full pede">Tipo de reclamação * <select data-sk="tipo"><option value="">— escolha —</option>${Object.keys(SOL.TIPOS).map(k => `<option value="${k}" ${n === +k ? 'selected' : ''}>${esc(SOL.TIPOS[k])}</option>`).join('')}</select></label>
-      <label class="full pede">Motivo * <input data-sk="motivo" value="${esc(x.motivo)}" placeholder="Ex.: atraso na injeção"></label>
+      <label class="full">Motivo <small>(opcional)</small> <input data-sk="motivo" value="${esc(x.motivo)}" placeholder="Só se quiser explicar algo a mais"></label>
       ${n ? `
         ${precisaCli ? printBox('cliente', 'Print do cliente', x.file) : ''}
         ${precisaUsina ? printBox('usina', 'Print da usina', x.usinaPrint) : ''}
-        <span class="st full" style="grid-column:1/-1">Preencha os campos com * . Protocolo e o resto a equipe busca na hora de abrir.</span>
+        <span class="st full" style="grid-column:1/-1">Anexe o print <b>ou</b> preencha os campos com *. Protocolo e o resto a equipe busca na hora de abrir.</span>
         ${camposDoTipo(n).map(campo).join('')}
         ${x.conf.base ? `<span class="st full" style="grid-column:1/-1">✓ Instalação encontrada na base de clientes: <b>${esc(x.conf.base)}</b></span>` : ''}
         ${(SOL.RETORNO || {})[n] ? `<label class="full pede">Retorno da Cemig * <small>${esc(SOL.RETORNO[n])}</small><input type="file" data-sret accept=".pdf,image/*" multiple>${x.retorno.length ? `<small>📎 ${x.retorno.map(f => esc(f.name)).join(', ')}</small>` : ''}</label>` : ''}
@@ -2797,9 +2828,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   async function salvarSolicitacoes(){
     const x = solAtual, n = +x.tipo, ROT = Object.fromEntries(SOL_CAMPOS), msg = t => { $('solMsgSalvar').textContent = t; };
     if(!n) return msg('Escolha o tipo de reclamação.');
-    if(!String(x.motivo || '').trim()) return msg('Escreva o motivo (ex.: atraso na injeção).');
     const faltam = obrigatorios(n).filter(k => !String(x.dados[k] || '').trim());
-    if(faltam.length) return msg('Preencha: ' + faltam.map(k => ROT[k] || k).join(', ') + '.');
+    if(faltam.length && !x.file && !x.usinaPrint) return msg('Anexe o print da tela ou preencha: ' + faltam.map(k => ROT[k] || k).join(', ') + '.');
     if((SOL.RETORNO || {})[n] && !x.retorno.length) return msg(`Na reclamação ${n}, anexe o retorno da Cemig.`);
     $('solSalvar').disabled = true;
     try{
@@ -2810,9 +2840,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       const d = Object.assign({}, x.dados); ['nome', 'usinaNome', 'outros', 'obs'].forEach(k => d[k] = String(d[k] || '').trim()); ['instalacao', 'uc', 'doc', 'usinaInst', 'usinaUc'].forEach(k => d[k] = String(d[k] || '').replace(/\D/g, ''));
       if(retorno.length && !d.outros) d.outros = 'Retorno da Cemig anexado na plataforma';
       // problema na leitura do print: campo que não fechou e ninguém corrigiu à mão
-      const duvida = (x.lidoFalhou ? ['print não lido'] : []).concat(Object.keys(x.conf).filter(k => x.conf[k] === 'confira' && !x.editado[k] && d[k]).map(k => ROT[k] || k));
+      const duvida = (x.lidoFalhou ? ['print não lido'] : []).concat(faltam.length ? ['faltou ler: ' + faltam.map(k => ROT[k] || k).join(', ')] : []).concat(Object.keys(x.conf).filter(k => x.conf[k] === 'confira' && !x.editado[k] && d[k]).map(k => ROT[k] || k));
       if(duvida.length) d.obs = [d.obs, '⚠ Conferir no print: ' + duvida.join(', ')].filter(Boolean).join(' · ');
-      const nova = {id, criadoEm: new Date().toISOString(), por: quem(), tipo: n, motivo: x.motivo.trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida};
+      const nova = {id, criadoEm: new Date().toISOString(), por: quem(), tipo: n, motivo: String(x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida};
       const dd = await alterarArqJson(ARQ_SOL, o => Object.assign({}, o, {solicitacoes: (o.solicitacoes || []).concat([nova])}), `Ouvidoria solicitada: reclamação ${n} (${quem()})`);
       solicitacoes = dd.solicitacoes; solAtual = novoPedido(); desenharSolForm();
       msg('Ouvidoria solicitada ✓');
@@ -2877,7 +2907,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         if(linhaDe[s.id] != null) return;
         const lin = livre(), d = s.dados || {};
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 0, endColumnIndex: 3}, rows: [{values: [txt(fmtData(String(s.criadoEm).slice(0, 10))), txt(s.por), txt(SOL.TIPOS[s.tipo] || 'Reclamação ' + s.tipo)]}], fields: 'userEnteredValue'}});
-        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 4, endColumnIndex: 16}, rows: [{values: [d.nome, d.instalacao, d.uc, d.doc, d.usinaNome, d.usinaInst, d.usinaUc, d.protocolo || '', '', d.outros, s.motivo, d.obs].map(txt)}], fields: 'userEnteredValue'}});
+        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 4, endColumnIndex: 16}, rows: [{values: [d.nome, d.instalacao, d.uc, d.doc, d.usinaNome, d.usinaInst, d.usinaUc, d.protocolo || '', '', d.outros, s.motivo || String(SOL.TIPOS[s.tipo] || '').replace(/^Reclamação \d+ – /, ''), d.obs].map(txt)}], fields: 'userEnteredValue'}});
         if((s.leituraDuvida || []).length) ped.push({repeatCell: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 15, endColumnIndex: 16}, cell: {userEnteredFormat: {backgroundColor: {red: 1, green: 0.85, blue: 0.6}}}, fields: 'userEnteredFormat.backgroundColor'}});
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 20, endColumnIndex: 21}, rows: [{values: [txt(s.id)]}], fields: 'userEnteredValue'}});
       });
