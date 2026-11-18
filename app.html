@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611182030"></script>
-<script src="retornos.js?v=202611182030"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611182030"></script>
+<script src="solicitadas.js?v=202611182045"></script>
+<script src="retornos.js?v=202611182045"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611182045"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -2649,8 +2649,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }catch(e){ $('retMsg').textContent = 'Não consegui salvar: ' + (e.message || e.status || e); }
     $('retSalvar').disabled = false; renderRetornos();
   }
-  // a Cemig respondeu de fato (não conta só a confirmação do registro nem a prorrogação do prazo)
-  const respondeu = t => !!t && !['registro', 'aguardando'].includes(t.tipo);
+  // teve retorno da Cemig: qualquer carta dela sobre a ouvidoria (confirmação de registro, prorrogação ou resposta)
+  const respondeu = t => !!t;
   // marca "Respondido" nos protocolos que já têm resposta da Cemig nos retornos (vale para os cadastrados antes)
   async function marcarRespondidos(){
     const faltam = registros.filter(r => !r.retorno && (r.retornos || []).some(respondeu));
