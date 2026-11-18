@@ -40,6 +40,29 @@
   function unicos(a) { return a.filter(function (v, i) { return v && a.indexOf(v) === i; }); }
   function todos(re, t, g) { var out = [], m; re.lastIndex = 0; while ((m = re.exec(t))) out.push(m[g || 1]); return out; }
 
+  /** Prazo escrito no retorno: "até 14/12", "prazo … 14/12/2026", "previsão de 14 de dezembro", "em até 10 dias úteis". */
+  function prazoDoTexto(texto, baseISO) {
+    var t = sem(texto || '').toLowerCase().replace(/\s+/g, ' ');
+    var base = baseISO || new Date().toISOString().slice(0, 10), anoBase = +base.slice(0, 4);
+    var gatilho = '(?:ate|prazo|previs\\w*|previst\\w*|retorno|resposta|respondid\\w*|conclus\\w*|concluid\\w*|sera\\w*|data limite|vencimento)';
+    var reNum = new RegExp(gatilho + '[^.;]{0,60}?\\b(\\d{1,2})[\\/.-](\\d{1,2})(?:[\\/.-](\\d{2,4}))?\\b');
+    var reExt = new RegExp(gatilho + '[^.;]{0,60}?\\b(\\d{1,2}) de (janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)(?: de (\\d{4}))?');
+    var m = reNum.exec(t), dia, mes, ano;
+    if (m) { dia = +m[1]; mes = +m[2]; ano = m[3] ? +m[3] : 0; }
+    else if ((m = reExt.exec(t))) { dia = +m[1]; mes = MESES[m[2]]; ano = m[3] ? +m[3] : 0; }
+    if (dia && mes >= 1 && mes <= 12 && dia <= 31) {
+      if (ano && ano < 100) ano += 2000;
+      if (!ano) { ano = anoBase; if (ano + '-' + pad(mes) + '-' + pad(dia) < base) ano++; } // sem ano: a próxima data a partir do retorno
+      var iso = ano + '-' + pad(mes) + '-' + pad(dia);
+      if (iso >= base) return iso;
+    }
+    var n = /(?:em ate|no prazo de|prazo de|dentro de) (\d{1,3}) dias? (uteis|corridos)?/.exec(t);
+    if (n && !/prazo de resposta e de/.test(n[0] + t.slice(n.index - 20, n.index))) {
+      if (n[2] === 'uteis') return maisDiasUteis(base, +n[1]);
+      var d = new Date(base + 'T12:00:00'); d.setDate(d.getDate() + +n[1]); return d.toISOString().slice(0, 10);
+    }
+    return '';
+  }
   function frases(t) { return String(t).replace(/\s+/g, ' ').split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÂÊÔÃÕÇ])/); }
 
   function lerCampos(textoOriginal) {
@@ -87,7 +110,7 @@
       : frases(corpo).filter(function (f) { return !/^(Esclarecimentos adicionais|A Ouvidoria Cemig tem como|Caso seja de seu interesse|Atenciosamente)/i.test(f.trim()); })
           .reduce(function (acc, f) { return acc.join(' ').length < 450 ? acc.concat([f]) : acc; }, []).join(' ');
     c.resumo = resumo.trim();
-    c.prazo = c.tipo === 'registro' ? maisDiasUteis(c.dataISO, c.prazoDias || 10) : '';
+    c.prazo = prazoDoTexto(texto, c.dataISO) || (c.tipo === 'registro' ? maisDiasUteis(c.dataISO, c.prazoDias || 10) : '');
     c.situacao = c.tipo === 'pedido' ? 'responder' : c.tipo === 'aguardando' || c.tipo === 'registro' ? 'aguardando_cemig' : 'verificar';
     c.novaOuvidoria = c.tipo === 'registro' || c.tipo === 'aguardando' ? 'nao' : 'avaliar';
     c.acao = acaoSugerida(c, plano, corpo);
@@ -145,6 +168,7 @@
       }
     });
     if (!passos.length) passos.push('A Cemig respondeu sem dizer o que fez. Logo, o colaborador tem que verificar as faturas e a situação do cliente para saber se o problema foi resolvido.');
+    if (c.prazo) passos.push('A Cemig deu prazo até ' + br(c.prazo) + '. Logo, nessa data o colaborador tem que conferir se foi feito; se não, cobrar a Cemig.');
     if (c.tipo !== 'aguardando') passos.push('Se o problema continuar, avaliar abrir nova ouvidoria.');
     return passos.join('\n');
   }
@@ -187,5 +211,5 @@
     return melhor && melhor.nota >= 0.45 ? melhor : null;
   }
 
-  raiz.Retornos = { palavras: palavras, parecido: parecido, lerCampos: lerCampos, acharRegistro: acharRegistro, TIPOS: TIPOS, SITUACOES: SITUACOES, NOVA: NOVA, maisDiasUteis: maisDiasUteis };
+  raiz.Retornos = { prazoDoTexto: prazoDoTexto, palavras: palavras, parecido: parecido, lerCampos: lerCampos, acharRegistro: acharRegistro, TIPOS: TIPOS, SITUACOES: SITUACOES, NOVA: NOVA, maisDiasUteis: maisDiasUteis };
 })(typeof window !== 'undefined' ? window : this);
