@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611181700"></script>
-<script src="retornos.js?v=202611181700"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181700"></script>
+<script src="solicitadas.js?v=202611181730"></script>
+<script src="retornos.js?v=202611181730"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181730"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -308,6 +308,9 @@
   .sol-card img{width:100%;border:1px solid var(--line);border-radius:8px;cursor:zoom-in}
   .ret-grid label.pede input,.ret-grid label.pede select,.ret-grid label.pede textarea{background:#fff6cf;border-color:#e8cf6a}
   .ret-grid label.naovale{opacity:.45}
+  .ret-grid label.cf-ok input{border-color:#4caf50;background:#f1faf1}
+  .ret-grid label.cf-confira input{border-color:#f0a030;background:#fff4e5}
+  .ret-grid small.cf{font-weight:600;color:#2e7d32}.ret-grid label.cf-confira small.cf{color:#b26a00}
   @media (max-width:720px){.sol-card{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="embutido.css?v=1">
@@ -2444,6 +2447,14 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     pdfLib.GlobalWorkerOptions.workerSrc = new URL('vendor/pdfjs/pdf.worker.min.mjs', location.href).href;
     return pdfLib;
   }
+  let ocrD = null;
+  async function carregarOcrDig(){
+    if(ocrD) return ocrD;
+    await carregarOcr();
+    ocrD = await window.Tesseract.createWorker('eng');
+    await ocrD.setParameters({tessedit_char_whitelist: '0123456789.-/', tessedit_pageseg_mode: '7'});
+    return ocrD;
+  }
   async function carregarOcr(){
     if(ocrW) return ocrW;
     if(!window.Tesseract) await new Promise((ok, falha) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js'; s.onload = ok; s.onerror = () => falha(new Error('Não consegui carregar o leitor de imagem.')); document.head.appendChild(s); });
@@ -2525,7 +2536,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         const c = RT.lerCampos(txt), a = RT.acharRegistro(c, registros);
         // retorno parecido com um que a equipe já corrigiu: usa a decisão de lá
         const par = RT.parecido ? RT.parecido(c, exemplosRet) : null;
-        if(par && c.tipo !== 'registro'){ c.acao = par.ex.acao; c.tipo = par.ex.tipo || c.tipo; c.situacao = par.ex.situacao || c.situacao; c.aprendido = par.ex; }
+        if(par && c.tipo !== 'registro'){ c.acao = c.acao + '\nNum retorno parecido, a equipe decidiu: ' + par.ex.acao; c.tipo = par.ex.tipo || c.tipo; c.situacao = par.ex.situacao || c.situacao; c.aprendido = par.ex; }
         Object.assign(x, {campos: c, regId: a.registro ? a.registro.id : SEM, por: a.por, tipo: c.tipo, dataISO: c.dataISO || isoHoje(), prazo: c.prazo || '',
           resumo: c.resumo, acao: c.acao, situacao: c.situacao, novaOuvidoria: c.novaOuvidoria,
           nome: c.nome || '', uc: (c.ucs || [])[0] || '', instalacao: (c.instalacoes || [])[0] || '',
@@ -2618,7 +2629,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       <td>${r.semCadastro ? `<b>${esc(r.nome || 'sem nome')}</b><br><small class="ret-pill responder">não está na plataforma</small>` : `<button class="lnk" type="button" data-rdados="${esc(r.id)}">${esc(r.nome || 'sem nome')}</button>`}<br><small>${r.reclamacao ? 'Recl. ' + esc(r.reclamacao) : ''}${r.protocolo ? ' · ' + esc(r.protocolo) : ''}${t.numOuvidoria || r.numOuvidoria ? ' · Ouv. ' + esc(t.numOuvidoria || r.numOuvidoria) : ''}${r.uc ? ' · UC ' + esc(r.uc) : ''}</small>${t.arquivo ? `<br><button class="lnk" type="button" data-retpdf2="${esc(t.arquivo)}">Ver PDF</button>` : ''}</td>
       <td><small>${esc(RT.TIPOS[t.tipo] || t.tipo)}</small><br>${esc((t.resumo || '').slice(0, 220))}${(t.resumo || '').length > 220 ? '…' : ''}</td>
       <td>${esc(fmtData(t.prazo))}</td>
-      <td>${esc((t.acao || t.pedido || '').slice(0, 260))}<br><small>Nova ouvidoria: <b>${esc(RT.NOVA[t.novaOuvidoria || 'avaliar'] || '')}</b>${t.responsavelAval ? ' · avalia: ' + esc(t.responsavelAval) : ''}</small></td>
+      <td style="white-space:pre-line">${esc((t.acao || t.pedido || '').slice(0, 700))}<br><small>Nova ouvidoria: <b>${esc(RT.NOVA[t.novaOuvidoria || 'avaliar'] || '')}</b>${t.responsavelAval ? ' · avalia: ' + esc(t.responsavelAval) : ''}</small></td>
       <td><span class="ret-pill ${esc(t.situacao)}">${esc(RT.SITUACOES[t.situacao] || t.situacao)}</span></td>
       <td>${retEditando === t.id ? `<div class="ret-resp"><textarea id="rrTxt" placeholder="O que verificamos / respondemos">${esc(t.nossaResposta || '')}</textarea>
           <input type="date" id="rrData" value="${esc(t.respostaData || isoHoje())}">
@@ -2698,6 +2709,27 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     ['usinaNome', 'Nome da usina'], ['usinaInst', 'Instalação da usina'], ['usinaUc', 'UC da usina'], ['outros', 'Outros dados desta reclamação'], ['obs', 'Observação']];
   let solFila = [], solicitacoes = [], solFiltro = 'abrir';
   async function lerSolicitacoes(){ try{ solicitacoes = ((await lerArqJson(ARQ_SOL)).dados.solicitacoes) || []; }catch(e){} }
+  // base de clientes da empresa (faturas + contratos): confirma a instalação lida e traz o CPF/CNPJ
+  let baseClientes = null;
+  async function lerBaseClientes(){
+    if(baseClientes) return baseClientes;
+    try{
+      const r = await ghFetch(`https://api.github.com/repos/${CFG.owner}/faturas-contratos-acessos/contents/dados/clientes.json?ref=main`, {headers: {Accept: 'application/vnd.github.raw'}});
+      const d = r.ok ? await r.json() : {}; baseClientes = Object.assign({}, d.faturas || {}, d.contratos || {});
+      Object.keys(d.faturas || {}).forEach(k => { if(baseClientes[k] && !baseClientes[k].cpfCnpj && d.faturas[k].cpfCnpj) baseClientes[k].cpfCnpj = d.faturas[k].cpfCnpj; });
+    }catch(e){ baseClientes = {}; }
+    return baseClientes;
+  }
+  // lê o print do sistema: texto todo + números recortados, conferidos por formato e pela base de clientes
+  async function lerPrintArquivo(file){
+    const url = URL.createObjectURL(file), img = new Image();
+    await new Promise((ok, falha) => { img.onload = ok; img.onerror = falha; img.src = url; });
+    const k = Math.max(1, Math.min(4, 2400 / img.width)), cv = document.createElement('canvas');
+    cv.width = Math.round(img.width * k); cv.height = Math.round(img.height * k);
+    const cx = cv.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, cv.width, cv.height); cx.imageSmoothingQuality = 'high'; cx.filter = 'grayscale(1) contrast(1.4)'; cx.drawImage(img, 0, 0, cv.width, cv.height);
+    const [T, base, D] = await Promise.all([carregarOcr(), lerBaseClientes(), carregarOcrDig()]);
+    return SOL.lerImagem(cv, T, base, D);
+  }
   // print pequeno: amplia e passa para cinza antes do OCR
   async function textoDoPrint(file){
     const url = URL.createObjectURL(file), img = new Image();
@@ -2713,7 +2745,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     files.filter(f => /^image\//.test(f.type)).forEach(f => solFila.push({file: f, url: URL.createObjectURL(f), estado: 'Lendo o print…', tipo: m.tipo || '', motivo: m.motivo || '', dados: {}}));
     desenharSolFila();
     for(const x of solFila.filter(z => !z.lido)){
-      try{ const c = SOL.lerPrint(await textoDoPrint(x.file)); x.dados = Object.assign({}, c, x.dados); x.estado = 'Confira os campos amarelos (o print pode ter saído com algum número errado).'; }
+      try{ const c = await lerPrintArquivo(x.file); x.conf = c.conf || {}; delete c.conf; x.dados = Object.assign({}, c, x.dados); x.estado = Object.values(x.conf).includes('confira') ? 'Lido. Confira os números marcados em laranja.' : 'Lido e conferido ✓'; }
       catch(e){ x.estado = 'Não consegui ler o print: preencha os campos à mão.'; }
       x.lido = true; desenharSolFila();
     }
@@ -2729,7 +2761,10 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           ${x.tipo ? `<span class="st full" style="grid-column:1/-1">Dados lidos do print (opcionais, só para conferência). Para esta reclamação importam: <b>${esc(pede.map(k => (SOL_CAMPOS.find(c => c[0] === k) || [k, k])[1]).join(', '))}</b>. O que faltar a equipe busca.</span>` : ''}
           <label class="full ${(SOL.RETORNO || {})[+x.tipo] ? 'pede' : ''}">Retorno da Cemig ${(SOL.RETORNO || {})[+x.tipo] ? '<b>(obrigatório nesta reclamação)</b>: ' + esc(SOL.RETORNO[+x.tipo]) : '<small>(opcional)</small>'}
             <input type="file" data-sret="${i}" accept=".pdf,image/*" multiple>${(x.retorno || []).length ? `<small>📎 ${x.retorno.map(f => esc(f.name)).join(', ')}</small>` : ''}</label>
-          ${SOL_CAMPOS.map(([k, rot]) => `<label class="${pede.includes(k) ? 'pede' : nao.includes(k) ? 'naovale' : ''}${k === 'outros' || k === 'obs' ? ' full' : ''}">${rot}<input data-sk="${k}" data-si="${i}" value="${esc(x.dados[k] || '')}"></label>`).join('')}
+          ${+x.tipo === 5 ? `<label class="full pede">Print da usina <b>(obrigatório nesta reclamação)</b> — separado do print do cliente para não confundir
+            <input type="file" data-susina="${i}" accept="image/*">${x.usinaPrint ? `<small>🖼 ${esc(x.usinaPrint.name)} · ${esc(x.usinaEstado || '')}</small>` : ''}</label>` : ''}
+          ${SOL_CAMPOS.map(([k, rot]) => { const cf = (x.conf || {})[k]; return `<label class="${pede.includes(k) ? 'pede' : nao.includes(k) ? 'naovale' : ''}${k === 'outros' || k === 'obs' ? ' full' : ''}${cf ? ' cf-' + cf : ''}">${rot}${cf === 'ok' ? ' <small class="cf">✓ conferido</small>' : cf === 'confira' ? ' <small class="cf">confira no print</small>' : ''}<input data-sk="${k}" data-si="${i}" value="${esc(x.dados[k] || '')}"></label>`; }).join('')}
+          ${(x.conf || {}).base ? `<span class="st full" style="grid-column:1/-1">✓ Instalação encontrada na base de clientes: <b>${esc(x.conf.base)}</b></span>` : ''}
         </div></div></div>`;
     }).join('');
     box.querySelectorAll('[data-sk]').forEach(el => el.onchange = el.oninput = () => {
@@ -2737,14 +2772,26 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       if(k === 'tipo' || k === 'motivo') x[k] = el.value; else x.dados[k] = el.value;
       if(k === 'tipo') desenharSolFila();
     });
+    box.querySelectorAll('[data-susina]').forEach(el => el.onchange = async () => {
+      const x = solFila[+el.dataset.susina], f = el.files[0]; if(!x || x.salvo || !f) return;
+      x.usinaPrint = f; x.usinaEstado = 'lendo…'; desenharSolFila();
+      try{
+        const c = await lerPrintArquivo(f), cf = c.conf || {};
+        // no print da usina, o "cliente" do topo é a própria usina
+        x.dados.usinaNome = c.nome || x.dados.usinaNome; x.dados.usinaInst = c.instalacao || x.dados.usinaInst; x.dados.usinaUc = c.uc || x.dados.usinaUc;
+        x.conf = Object.assign({}, x.conf, {usinaInst: cf.instalacao, usinaUc: cf.uc});
+        x.usinaEstado = Object.values({a: cf.instalacao, b: cf.uc}).includes('confira') ? 'confira os números da usina' : 'lido ✓';
+      }catch(e){ x.usinaEstado = 'não consegui ler: preencha os dados da usina'; }
+      desenharSolFila();
+    });
     box.querySelectorAll('[data-sret]').forEach(el => el.onchange = () => { const x = solFila[+el.dataset.sret]; if(x && !x.salvo){ x.retorno = (x.retorno || []).concat([...el.files]); desenharSolFila(); } });
     box.querySelectorAll('[data-stira]').forEach(b => b.onclick = () => { solFila.splice(+b.dataset.stira, 1); desenharSolFila(); });
     $('solAcoes').hidden = !solFila.some(x => x.lido && !x.salvo);
   }
   async function salvarSolicitacoes(){
     const prontos = solFila.filter(x => x.lido && !x.salvo);
-    const falta = prontos.find(x => !x.tipo || ((SOL.RETORNO || {})[+x.tipo] && !(x.retorno || []).length));
-    if(falta){ $('solMsgSalvar').textContent = !falta.tipo ? 'Escolha o tipo de reclamação de cada print.' : `Na reclamação ${falta.tipo}, anexe o retorno da Cemig.`; return; }
+    const falta = prontos.find(x => !x.tipo || ((SOL.RETORNO || {})[+x.tipo] && !(x.retorno || []).length) || (+x.tipo === 5 && !x.usinaPrint));
+    if(falta){ $('solMsgSalvar').textContent = !falta.tipo ? 'Escolha o tipo de reclamação de cada print.' : +falta.tipo === 5 && !falta.usinaPrint ? 'Na reclamação 5, anexe também o print da usina.' : `Na reclamação ${falta.tipo}, anexe o retorno da Cemig.`; return; }
     $('solSalvar').disabled = true;
     try{
       const novas = [];
@@ -2753,6 +2800,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         $('solMsgSalvar').textContent = 'Enviando o print…';
         await subirArquivo(caminho, x.file, `Ouvidoria solicitada (${quem()})`);
         const d = Object.assign({}, x.dados); ['nome', 'usinaNome', 'outros', 'obs'].forEach(k => d[k] = String(d[k] || '').trim()); ['instalacao', 'uc', 'doc', 'usinaInst', 'usinaUc'].forEach(k => d[k] = String(d[k] || '').replace(/\D/g, ''));
+        let printUsina = '';
+        if(x.usinaPrint){ printUsina = `anexos/solicitacoes/${id.slice(0, 8)}-usina-${nomeSeguro(x.usinaPrint.name || 'usina.png')}`; await subirArquivo(printUsina, x.usinaPrint, `Print da usina da solicitação (${quem()})`); }
         const retorno = [];
         for(const f of (x.retorno || [])){
           const c = `anexos/solicitacoes/${id.slice(0, 8)}-retorno-${nomeSeguro(f.name || 'retorno.pdf')}`;
@@ -2761,7 +2810,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           retorno.push({caminho: c, nome: f.name, tipo: f.type || '', tamanho: f.size});
         }
         if(retorno.length && !d.outros) d.outros = 'Retorno da Cemig anexado na plataforma';
-        novas.push({id, criadoEm: new Date().toISOString(), por: quem(), tipo: +x.tipo, motivo: (x.motivo || '').trim(), dados: d, print: caminho, retorno});
+        novas.push({id, criadoEm: new Date().toISOString(), por: quem(), tipo: +x.tipo, motivo: (x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno});
         x.salvo = true; desenharSolFila();
       }
       const d = await alterarArqJson(ARQ_SOL, d => Object.assign({}, d, {solicitacoes: (d.solicitacoes || []).concat(novas)}), `${novas.length} ouvidoria(s) solicitada(s) (${quem()})`);
@@ -2790,7 +2839,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       <td>${esc(s.dados.nome || s.dados.usinaNome || '')}<br><small>${s.dados.instalacao ? 'Inst. ' + esc(s.dados.instalacao) : ''}${s.dados.uc ? ' · UC ' + esc(s.dados.uc) : ''}${s.dados.usinaInst ? ' · Usina ' + esc(s.dados.usinaInst) : ''}</small></td>
       <td>${esc(s.motivo || '')}</td><td>${esc(s.por || '')}</td>
       <td>${r ? `<span class="ret-pill encerrado">Aberta${r.protocolo ? ' · ' + esc(r.protocolo) : ''}</span>` : '<span class="ret-pill responder">A abrir</span>'}</td>
-      <td style="white-space:nowrap">${r ? `<button class="lnk" type="button" data-sdados="${esc(r.id)}">Ver ouvidoria</button>` : `<button class="btn primary" type="button" data-sabrir="${esc(s.id)}">Abrir ouvidoria</button>`} <button class="lnk" type="button" data-sprint="${esc(s.print)}">Print</button>${(s.retorno || []).map(a => ` <button class="lnk" type="button" data-sprint="${esc(a.caminho)}">Retorno da Cemig</button>`).join('')}</td></tr>`).join('')}</tbody></table>`
+      <td style="white-space:nowrap">${r ? `<button class="lnk" type="button" data-sdados="${esc(r.id)}">Ver ouvidoria</button>` : `<button class="btn primary" type="button" data-sabrir="${esc(s.id)}">Abrir ouvidoria</button>`} <button class="lnk" type="button" data-sprint="${esc(s.print)}">Print${s.printUsina ? ' do cliente' : ''}</button>${s.printUsina ? ` <button class="lnk" type="button" data-sprint="${esc(s.printUsina)}">Print da usina</button>` : ''}${(s.retorno || []).map(a => ` <button class="lnk" type="button" data-sprint="${esc(a.caminho)}">Retorno da Cemig</button>`).join('')}</td></tr>`).join('')}</tbody></table>`
       : `<p class="count-note">${solFiltro === 'abrir' ? 'Nenhuma ouvidoria esperando para ser aberta.' : 'Nenhuma solicitação aqui.'}</p>`;
     $('solLista').querySelectorAll('[data-sdados]').forEach(b => b.onclick = () => abrirDados(b.dataset.sdados));
     $('solLista').querySelectorAll('[data-sprint]').forEach(b => b.onclick = () => baixarArquivo({caminho: b.dataset.sprint, nome: b.dataset.sprint.split('/').pop()}, true));

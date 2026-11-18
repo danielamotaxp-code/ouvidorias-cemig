@@ -94,20 +94,59 @@
     return c;
   }
 
-  /** O que a equipe deve fazer com o retorno (a Cemig quase nunca diz isso com todas as letras). */
+  /* ---------- raciocínio: o que a Cemig afirmou → o que o colaborador tem que verificar ----------
+     Cada regra reconhece uma afirmação da Cemig no texto, cita a frase e tira a conclusão (como a equipe faria).
+     Ordem importa: as mais específicas primeiro. */
+  var RACIOCINIO = [
+    { re: /(cpf|cnpj)[^.]{0,80}(divergen|nao confere|incompativel|diferente)|titularidade|titular divergente/,
+      nao: /(ajustad|corrigid|regularizad|atualizad)/,
+      faz: 'conferir se o CPF/CNPJ do contrato é o mesmo do titular da instalação na Cemig. Se for o mesmo, a Cemig errou: abrir a Reclamação 5 com a resposta da Cemig anexada. Se for diferente, marcar o cliente “Em análise” e avisar o comercial' },
+    { re: /(fatura|conta)s?[^.]{0,120}(foram emitidas|foi emitida|emitid[ao]s?|disponibilizad|enviad[ao]s?|encaminhad[ao]s?|gerad[ao]s?)/,
+      faz: 'verificar se essas faturas foram realmente emitidas e chegaram ao cliente (agência virtual da Cemig e sistema da empresa). Se não aparecerem ou o cliente não recebeu, a resposta da Cemig não resolveu' },
+    { re: /(sem (a impressao do )?codigo de barras|baixo valor|valor minimo)|cobranca[^.]{0,60}(realizada|sera|feita) na (fatura|conta) (referente|seguinte|do mes|de)/,
+      faz: 'conferir na fatura seguinte se o valor da fatura sem código de barras foi mesmo cobrado junto, sem cobrança em dobro'},
+    { re: /refaturad|refaturamento|revisao (da|de) fatura|fatura (sera|foi) (refeita|corrigida|cancelada)|cancelamento da fatura/,
+      faz: 'conferir se a fatura corrigida saiu e se o valor ficou certo' },
+    { re: /(credito|injecao|compensac|energia injetada|excedente)[^.]{0,120}(compensad|aplicad|lancad|creditad|regularizad|realizad|incluid|disponibiliz|sera|serao|ocorrer)/,
+      faz: 'verificar na próxima fatura do cliente se os créditos/a injeção aparecem compensados na quantidade certa' },
+    { re: /(rateio|lista de (unidades )?(beneficiarias|recebedoras)|unidade[s]? (recebedora|beneficiaria))[^.]{0,120}(incluid|cadastrad|atualizad|homologad|aprovad|efetivad|concluid)|cadastro[^.]{0,60}(concluid|efetivad|aprovad|homologad)/,
+      faz: 'conferir no sistema da Cemig se a unidade já aparece no rateio da usina com o percentual certo e acompanhar se os créditos começam' },
+    { re: /correcao cadastral|cadastro[^.]{0,60}(corrigid|atualizad|regularizad|ajustad)|dados cadastrais/,
+      faz: 'verificar se o cadastro está correto agora na Cemig (unidade e usina) e se a próxima fatura sai normal' },
+    { re: /(indeferid|improcedente|nao procede|nao foi possivel atender|nao ha (irregularidade|erro)|esta correto|estao corretos|conforme (a )?(legislacao|resolucao|ren))/,
+      faz: 'ler o motivo que a Cemig deu e verificar se ela tem razão. Se não tiver, juntar a prova e responder/abrir nova ouvidoria' },
+    { re: /(vistoria|visita tecnica|inspecao|leitura)[^.]{0,80}(realizad|agendad|sera|programad)/,
+      faz: 'verificar se a vistoria/leitura aconteceu e o que constou nela' },
+    { re: /(sera|serao) (realizad|analisad|verificad|providenciad|executad|corrigid|regularizad|efetuad|reprocessad)|em analise|encaminhad[ao] (para|a) (a )?(area|setor)|estamos (verificando|analisando|providenciando)/,
+      faz: 'aguardar a Cemig concluir e, passado o prazo, conferir se foi feito de verdade' }
+  ];
+  function curto(f, re) {
+    f = f.replace(/\s+/g, ' ').trim();
+    if (f.length <= 220) return f;
+    var m = re ? re.exec(sem(f).toLowerCase()) : null, ini = 0;
+    if (m && m.index > 60) { ini = Math.max(f.lastIndexOf(', ', m.index - 1) + 2, m.index - 90); ini = f.indexOf(' ', ini - 1) + 1; }
+    var t = f.length - ini <= 300 ? f.slice(ini) : f.slice(ini, ini + 240).replace(/\s\S*$/, '');
+    return (ini ? '…' : '') + t + (ini + t.length < f.length ? '…' : '');
+  }
+
+  /** O que a equipe deve fazer com o retorno: para cada afirmação da Cemig, cita a frase e conclui o que verificar. */
   function acaoSugerida(c, plano, corpo) {
-    if (c.tipo === 'registro') return 'Aguardar a resposta da Cemig até ' + br(c.prazo) + ' (' + (c.prazoDias || 10) + ' dias úteis). Se não responder até lá, cobrar a Cemig.';
-    var a = [];
-    if (c.tipo === 'pedido' && c.pedido) a.push('Atender ao que a Cemig pediu: ' + c.pedido);
-    if (/correcao cadastral|cadastr(o|al)|divergencia|titularidade|vinculad/.test(plano)) a.push('Verificar a correção cadastral citada pela Cemig (cadastro da unidade e da usina) e acompanhar até o faturamento sair.');
-    var fat = /faturas?[^.]{0,120}(foram emitidas|foi emitida|disponibilizad)[^.]*\./i.exec(corpo);
-    if (fat) a.push('Conferir as faturas citadas (' + fat[0].replace(/\s+/g, ' ').trim().slice(0, 160) + ') e verificar o que aconteceu com o cliente.');
-    else if (/nao houve faturamento|sem faturamento|faturamento (nao|ainda)/.test(plano)) a.push('Verificar o faturamento da unidade do cliente nos próximos meses.');
-    if (/injec|credit|compensac/.test(plano)) a.push('Verificar a injeção/compensação de créditos do cliente nas próximas faturas.');
-    if (c.tipo === 'aguardando') a.push('Aguardar a Cemig concluir o que informou e conferir depois.');
-    if (!a.length) a.push('Verificar as faturas e a situação do cliente.');
-    if (c.tipo !== 'aguardando') a.push('Se o problema continuar, abrir nova ouvidoria.');
-    return a.join(' ');
+    if (c.tipo === 'registro') return 'A Cemig só confirmou o registro. Logo, aguardar a resposta até ' + br(c.prazo) + ' (' + (c.prazoDias || 10) + ' dias úteis). Se não responder até lá, cobrar a Cemig.';
+    var fs = frases(corpo), usadas = {}, passos = [];
+    if (c.tipo === 'pedido' && c.pedido) passos.push('A Cemig pediu: “' + curto(c.pedido) + '”. Logo, o colaborador tem que separar e enviar isso à Cemig.');
+    RACIOCINIO.forEach(function (r) {
+      if (passos.length >= 3) return;
+      for (var k = 0; k < fs.length; k++) {
+        var fl = sem(fs[k]).toLowerCase();
+        if (usadas[k] || !r.re.test(fl) || (r.nao && r.nao.test(fl))) continue;
+        usadas[k] = 1;
+        passos.push('A Cemig disse: “' + curto(fs[k], r.re) + '”. Logo, o colaborador tem que ' + r.faz + '.');
+        break;
+      }
+    });
+    if (!passos.length) passos.push('A Cemig respondeu sem dizer o que fez. Logo, o colaborador tem que verificar as faturas e a situação do cliente para saber se o problema foi resolvido.');
+    if (c.tipo !== 'aguardando') passos.push('Se o problema continuar, avaliar abrir nova ouvidoria.');
+    return passos.join('\n');
   }
 
   /** Ouvidoria do registro a que o retorno se refere: nº da Ouvidoria, protocolo, instalação ou UC (nessa ordem). */
