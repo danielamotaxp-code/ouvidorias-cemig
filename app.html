@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611181730"></script>
-<script src="retornos.js?v=202611181730"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181730"></script>
+<script src="solicitadas.js?v=202611181800"></script>
+<script src="retornos.js?v=202611181800"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181800"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -414,12 +414,11 @@
 <!-- =============== ABA OUVIDORIAS SOLICITADAS =============== -->
 <div id="viewSolicitadas" class="reg" hidden>
   <div class="reg-head"><div><h2>Ouvidorias solicitadas</h2>
-    <p class="ret-sub">Mande aqui o print do cliente e o tipo de reclamação, como no grupo. A plataforma lê o print, mostra o que cada reclamação precisa e manda tudo formatado para a planilha <a id="solLinkPlan" target="_blank" rel="noopener">Ouvidorias Solicitadas</a>. Protocolo e demais dados a equipe busca na hora de abrir.</p></div>
+    <p class="ret-sub">Os pedidos de ouvidoria agora são feitos só aqui (não mais no grupo). Anexe o print do sistema, escolha o tipo de reclamação e o motivo. A plataforma lê o print, mostra o que cada reclamação precisa e manda tudo formatado para a planilha <a id="solLinkPlan" target="_blank" rel="noopener">Ouvidorias Solicitadas</a>. Protocolo e demais dados a equipe busca na hora de abrir.</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="solSinc" type="button">Atualizar planilha</button></div>
   </div>
   <div id="solG" class="gstatus"></div>
-  <label class="ret-sub" style="display:block;margin:10px 0 4px;font-weight:600">Mensagem do grupo (opcional) — a plataforma tira o nº da reclamação e o motivo</label>
-  <textarea id="solMsg" class="sol-msg" placeholder="Ex.: abre a ouvidoria dessa cliente, por atraso na injeção, por gentileza? É a reclamação 8"></textarea>
+  <textarea id="solMsg" hidden></textarea>
   <label class="ret-drop" id="solDrop" tabindex="0"><input type="file" id="solArq" accept="image/*,.pdf" multiple hidden>
     <b>Cole o print aqui (Ctrl+V) ou arraste</b><span>ou clique para escolher. Um print por cliente; pode mandar vários. Só o print e o tipo de reclamação bastam: o resto a equipe busca na plataforma da empresa.</span></label>
   <div id="solFila"></div>
@@ -2745,7 +2744,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     files.filter(f => /^image\//.test(f.type)).forEach(f => solFila.push({file: f, url: URL.createObjectURL(f), estado: 'Lendo o print…', tipo: m.tipo || '', motivo: m.motivo || '', dados: {}}));
     desenharSolFila();
     for(const x of solFila.filter(z => !z.lido)){
-      try{ const c = await lerPrintArquivo(x.file); x.conf = c.conf || {}; delete c.conf; x.dados = Object.assign({}, c, x.dados); x.estado = Object.values(x.conf).includes('confira') ? 'Lido. Confira os números marcados em laranja.' : 'Lido e conferido ✓'; }
+      try{ const c = await lerPrintArquivo(x.file); x.lidoOk = true; x.conf = c.conf || {}; delete c.conf; x.dados = Object.assign({}, c, x.dados); x.estado = Object.values(x.conf).includes('confira') ? 'Lido. Confira os números marcados em laranja.' : 'Lido e conferido ✓'; }
       catch(e){ x.estado = 'Não consegui ler o print: preencha os campos à mão.'; }
       x.lido = true; desenharSolFila();
     }
@@ -2757,7 +2756,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       return `<div class="ret-card ${x.salvo ? 'ok' : ''}"><div class="top"><b>🖼 Print ${i + 1}</b><span class="st">${x.salvo ? '✓ Cadastrada' : esc(x.estado || '')}${x.salvo ? '' : ` · <button class="lnk" type="button" data-stira="${i}">Tirar</button>`}</span></div>
         <div class="sol-card"><a href="${x.url}" target="_blank" rel="noopener"><img src="${x.url}" alt="print"></a><div class="ret-grid">
           <label class="full">Tipo de reclamação <select data-sk="tipo" data-si="${i}"><option value="">— escolha —</option>${Object.keys(SOL.TIPOS).map(n => `<option value="${n}" ${+x.tipo === +n ? 'selected' : ''}>${esc(SOL.TIPOS[n])}</option>`).join('')}</select></label>
-          <label class="full">Motivo <input data-sk="motivo" data-si="${i}" value="${esc(x.motivo || '')}" placeholder="Ex.: atraso na injeção"></label>
+          <label class="full pede">Motivo <input data-sk="motivo" data-si="${i}" value="${esc(x.motivo || '')}" placeholder="Ex.: atraso na injeção"></label>
           ${x.tipo ? `<span class="st full" style="grid-column:1/-1">Dados lidos do print (opcionais, só para conferência). Para esta reclamação importam: <b>${esc(pede.map(k => (SOL_CAMPOS.find(c => c[0] === k) || [k, k])[1]).join(', '))}</b>. O que faltar a equipe busca.</span>` : ''}
           <label class="full ${(SOL.RETORNO || {})[+x.tipo] ? 'pede' : ''}">Retorno da Cemig ${(SOL.RETORNO || {})[+x.tipo] ? '<b>(obrigatório nesta reclamação)</b>: ' + esc(SOL.RETORNO[+x.tipo]) : '<small>(opcional)</small>'}
             <input type="file" data-sret="${i}" accept=".pdf,image/*" multiple>${(x.retorno || []).length ? `<small>📎 ${x.retorno.map(f => esc(f.name)).join(', ')}</small>` : ''}</label>
@@ -2769,7 +2768,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     }).join('');
     box.querySelectorAll('[data-sk]').forEach(el => el.onchange = el.oninput = () => {
       const x = solFila[+el.dataset.si]; if(!x || x.salvo) return; const k = el.dataset.sk;
-      if(k === 'tipo' || k === 'motivo') x[k] = el.value; else x.dados[k] = el.value;
+      if(k === 'tipo' || k === 'motivo') x[k] = el.value; else { x.dados[k] = el.value; (x.editado = x.editado || {})[k] = true; }
       if(k === 'tipo') desenharSolFila();
     });
     box.querySelectorAll('[data-susina]').forEach(el => el.onchange = async () => {
@@ -2790,6 +2789,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   async function salvarSolicitacoes(){
     const prontos = solFila.filter(x => x.lido && !x.salvo);
+    const semMotivo = prontos.find(x => x.tipo && !String(x.motivo || '').trim());
+    if(semMotivo){ $('solMsgSalvar').textContent = 'Escreva o motivo de cada pedido (ex.: atraso na injeção).'; return; }
     const falta = prontos.find(x => !x.tipo || ((SOL.RETORNO || {})[+x.tipo] && !(x.retorno || []).length) || (+x.tipo === 5 && !x.usinaPrint));
     if(falta){ $('solMsgSalvar').textContent = !falta.tipo ? 'Escolha o tipo de reclamação de cada print.' : +falta.tipo === 5 && !falta.usinaPrint ? 'Na reclamação 5, anexe também o print da usina.' : `Na reclamação ${falta.tipo}, anexe o retorno da Cemig.`; return; }
     $('solSalvar').disabled = true;
@@ -2810,7 +2811,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           retorno.push({caminho: c, nome: f.name, tipo: f.type || '', tamanho: f.size});
         }
         if(retorno.length && !d.outros) d.outros = 'Retorno da Cemig anexado na plataforma';
-        novas.push({id, criadoEm: new Date().toISOString(), por: quem(), tipo: +x.tipo, motivo: (x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno});
+        const ROT = Object.fromEntries(SOL_CAMPOS);
+        // problema na leitura: campo que não fechou e o pedido não corrigiu à mão, ou print que não deu para ler
+        const duvida = !x.lidoOk ? ['print não lido'] : Object.keys(x.conf || {}).filter(k => x.conf[k] === 'confira' && !x.editado?.[k] && d[k]).map(k => ROT[k] || k);
+        if(duvida.length) d.obs = [d.obs, '⚠ Conferir no print: ' + duvida.join(', ')].filter(Boolean).join(' · ');
+        novas.push({id, criadoEm: new Date().toISOString(), por: quem(), tipo: +x.tipo, motivo: (x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida});
         x.salvo = true; desenharSolFila();
       }
       const d = await alterarArqJson(ARQ_SOL, d => Object.assign({}, d, {solicitacoes: (d.solicitacoes || []).concat(novas)}), `${novas.length} ouvidoria(s) solicitada(s) (${quem()})`);
@@ -2837,7 +2842,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('solLista').innerHTML = itens.length ? `<table class="ret-tab"><thead><tr><th>Data</th><th>Reclamação</th><th>Cliente / usina</th><th>Motivo</th><th>Pedido por</th><th>Situação</th><th></th></tr></thead><tbody>${itens.map(({s, r}) => `<tr>
       <td>${esc(fmtData(String(s.criadoEm).slice(0, 10)))}</td><td>Reclamação ${esc(s.tipo)}</td>
       <td>${esc(s.dados.nome || s.dados.usinaNome || '')}<br><small>${s.dados.instalacao ? 'Inst. ' + esc(s.dados.instalacao) : ''}${s.dados.uc ? ' · UC ' + esc(s.dados.uc) : ''}${s.dados.usinaInst ? ' · Usina ' + esc(s.dados.usinaInst) : ''}</small></td>
-      <td>${esc(s.motivo || '')}</td><td>${esc(s.por || '')}</td>
+      <td>${esc(s.motivo || '')}${(s.leituraDuvida || []).length ? `<br><span class="ret-pill responder" title="A leitura do print deu dúvida">⚠ Conferir no print: ${esc(s.leituraDuvida.join(', '))}</span>` : ''}</td><td>${esc(s.por || '')}</td>
       <td>${r ? `<span class="ret-pill encerrado">Aberta${r.protocolo ? ' · ' + esc(r.protocolo) : ''}</span>` : '<span class="ret-pill responder">A abrir</span>'}</td>
       <td style="white-space:nowrap">${r ? `<button class="lnk" type="button" data-sdados="${esc(r.id)}">Ver ouvidoria</button>` : `<button class="btn primary" type="button" data-sabrir="${esc(s.id)}">Abrir ouvidoria</button>`} <button class="lnk" type="button" data-sprint="${esc(s.print)}">Print${s.printUsina ? ' do cliente' : ''}</button>${s.printUsina ? ` <button class="lnk" type="button" data-sprint="${esc(s.printUsina)}">Print da usina</button>` : ''}${(s.retorno || []).map(a => ` <button class="lnk" type="button" data-sprint="${esc(a.caminho)}">Retorno da Cemig</button>`).join('')}</td></tr>`).join('')}</tbody></table>`
       : `<p class="count-note">${solFiltro === 'abrir' ? 'Nenhuma ouvidoria esperando para ser aberta.' : 'Nenhuma solicitação aqui.'}</p>`;
@@ -2878,6 +2883,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         const lin = livre(), d = s.dados || {};
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 0, endColumnIndex: 3}, rows: [{values: [txt(fmtData(String(s.criadoEm).slice(0, 10))), txt(s.por), txt(SOL.TIPOS[s.tipo] || 'Reclamação ' + s.tipo)]}], fields: 'userEnteredValue'}});
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 4, endColumnIndex: 16}, rows: [{values: [d.nome, d.instalacao, d.uc, d.doc, d.usinaNome, d.usinaInst, d.usinaUc, d.protocolo || '', '', d.outros, s.motivo, d.obs].map(txt)}], fields: 'userEnteredValue'}});
+        if((s.leituraDuvida || []).length) ped.push({repeatCell: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 15, endColumnIndex: 16}, cell: {userEnteredFormat: {backgroundColor: {red: 1, green: 0.85, blue: 0.6}}}, fields: 'userEnteredFormat.backgroundColor'}});
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 20, endColumnIndex: 21}, rows: [{values: [txt(s.id)]}], fields: 'userEnteredValue'}});
       });
       if(ped.length) await g.lote(pid, ped);
