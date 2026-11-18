@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181135"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181200"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -299,6 +299,7 @@
   <div class="tabs" role="tablist">
     <button class="tab" data-view="gerar" role="tab">Gerar ouvidoria</button>
     <button class="tab" data-view="registro" role="tab">Registro de protocolos</button>
+    <button class="tab" data-view="planilhas" role="tab">Planilhas das ouvidorias</button>
   </div>
 </header>
 
@@ -367,6 +368,9 @@
 </div>
 
 <!-- =============== ABA REGISTRO =============== -->
+<!-- =============== ABA PLANILHAS (Reclamação 6 das faturas + outras planilhas) =============== -->
+<div id="viewPlanilhas" hidden><iframe id="frPlanilhas" title="Planilhas das ouvidorias" style="display:block;width:100%;border:0;min-height:calc(100vh - var(--hdr, 120px))"></iframe></div>
+
 <div id="viewRegistro" class="reg" hidden>
   <div class="reg-head">
     <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
@@ -2335,12 +2339,21 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
 
   // ---------- abas ----------
   function mostrar(view){
-    const v = view === 'registro' ? 'registro' : 'gerar';
+    const v = view === 'registro' || view === 'planilhas' ? view : 'gerar';
     $('viewGerar').hidden = v !== 'gerar';
     $('viewRegistro').hidden = v !== 'registro';
+    $('viewPlanilhas').hidden = v !== 'planilhas';
+    if(v === 'planilhas') abrirPlanilhas();
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
     if(v === 'registro') renderRegistro();
     window.scrollTo(0,0);
+  }
+  // a tela das planilhas é a mesma de Faturas e Contratos (modo planilhas-ouv), aberta aqui dentro
+  function abrirPlanilhas(){
+    const fr = $('frPlanilhas'); if(fr.src) return;
+    fr.src = '/faturas-contratos/app.html?modo=planilhas-ouv&c=' + Date.now();
+    const ajustar = () => { try{ const h = fr.contentDocument.documentElement.scrollHeight; if(h > 200) fr.style.height = h + 'px'; }catch(e){} };
+    fr.addEventListener('load', () => { ajustar(); try{ new ResizeObserver(ajustar).observe(fr.contentDocument.body); }catch(e){ setInterval(ajustar, 1000); } });
   }
   function irPara(v){ try{ if(location.hash.slice(1) !== v) location.hash = v; }catch(e){} mostrar(v); }
   document.querySelectorAll('.tab').forEach(t => t.onclick = () => irPara(t.dataset.view));
