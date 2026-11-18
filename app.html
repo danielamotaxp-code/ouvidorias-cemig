@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181300"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181315"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -2364,7 +2364,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   function medirCabecalho(){ const h = document.querySelector('header'); if(h) document.documentElement.style.setProperty('--hdr', h.offsetHeight + 'px'); }
   medirCabecalho(); window.addEventListener('resize', medirCabecalho);
   try{ new ResizeObserver(medirCabecalho).observe(document.querySelector('header')); }catch(e){}
-  mostrar(location.hash.slice(1));
+  // voltando da conexão com o Google: reabre a aba em que a pessoa estava
+  let abaVolta = ''; try{ abaVolta = sessionStorage.getItem('ouv_aba') || ''; sessionStorage.removeItem('ouv_aba'); }catch(e){}
+  if(abaVolta) irPara(abaVolta); else mostrar(location.hash.slice(1));
   renderGerador();
   iniciarLogin();
 })();
