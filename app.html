@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611181050"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611181100"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -1793,7 +1793,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   async function atualizarListaFaturas(r){
     try{
-      if(!String(r.instalacao || '').replace(/\D/g, '')) return;
+      if(!String(r.instalacao || '').replace(/\D/g, '') && !String(r.protocolo || '').replace(/\D/g, '')) return;
       if(!G() || !G().conectado || !G().conectado()){
         const f = filaFaturas(); if(!f.includes(r.id)){ f.push(r.id); store.set('ouv_fila_fat', f); }
         setTimeout(() => toast('Para atualizar as planilhas de ouvidorias (Faturas e Contratos), clique em "Atualizar planilha Google" (no Registro de protocolos) e entre com o Google.'), 2500);
@@ -1805,7 +1805,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       // outras planilhas (Thiago, Reclamação 7, Grupo…): só os clientes que já estão nelas
       if((d.acompanhadas || []).length && window.Acompanhamento){
         try{
-          const res = await window.Acompanhamento.sincronizar({google: G(), planilhas: d.acompanhadas, registros, instalacoes: [r.instalacao]});
+          const res = await window.Acompanhamento.sincronizar({google: G(), planilhas: d.acompanhadas, registros, instalacoes: [r.instalacao], protocolos: [r.protocolo]});
           const ok = res.filter(x => x.linhas > 0).map(x => x.nome);
           if(ok.length) toast(`Atualizado também em: ${ok.join(', ')} ✓`);
         }catch(e){}
