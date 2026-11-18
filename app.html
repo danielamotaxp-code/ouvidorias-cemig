@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611182015"></script>
-<script src="retornos.js?v=202611182015"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611182015"></script>
+<script src="solicitadas.js?v=202611182030"></script>
+<script src="retornos.js?v=202611182030"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611182030"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -1442,12 +1442,14 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     throw {status: 409};
   }
 
+  let jaMarcouRespondidos = false;
   async function atualizarLista(silencioso){
     if(!token) return;
     try{
       const {lista, sha} = await carregarArquivo();
       if(sha !== shaAtual || dbStatus !== 'ok'){ registros = lista; shaAtual = sha; }
       dbStatus = 'ok';
+      if(!jaMarcouRespondidos){ jaMarcouRespondidos = true; setTimeout(() => marcarRespondidos(), 1500); }
     }catch(e){
       if(e && (e.status === 401 || e.status === 403)) dbStatus = 'semchave';
       else if(!silencioso || dbStatus !== 'ok') dbStatus = 'error';
@@ -2633,10 +2635,11 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         const arq = {documento: 'Retorno da Cemig', nome: x.file.name, caminho, tamanho: x.file.size, tipo: x.file.type || 'application/pdf', enviadoPor: quem(), em: new Date().toISOString()};
         const ret = retornoDe(x, caminho);
         await alterar(l => l.map(z => z.id !== r.id ? z : Object.assign({}, z, {arquivos: (z.arquivos || []).concat([arq]), retornos: (z.retornos || []).concat([ret]),
-          numOuvidoria: z.numOuvidoria || ret.numOuvidoria || '', retorno: ret.tipo === 'registro' ? !!z.retorno : true})), `Retorno da Cemig: ${r.nome || ''} (${quem()})`);
+          numOuvidoria: z.numOuvidoria || ret.numOuvidoria || '', retorno: !!z.retorno || respondeu(ret)})), `Retorno da Cemig: ${r.nome || ''} (${quem()})`);
         x.salvo = true; desenharRetFila();
         try{ await atualizarListaFaturas(registros.find(z => z.id === r.id)); }catch(e){}
       }
+      agendarGoogle(); // planilha do registro de protocolos: coluna Retorno
       // correções viram exemplos para os próximos retornos
       const novos = prontos.filter(x => x.campos && x.campos.corpo && x.tipo !== 'registro' && ((x.acao || '').trim() !== (x.acaoSugerida || '').trim() || x.tipo !== x.tipoSugerido))
         .map(x => ({palavras: RT.palavras(x.campos.corpo), resumo: (x.resumo || '').slice(0, 300), acao: (x.acao || '').trim(), tipo: x.tipo, situacao: x.situacao, por: quem(), em: new Date().toISOString()}));
@@ -2645,6 +2648,15 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       await sincronizarRetornos(false);
     }catch(e){ $('retMsg').textContent = 'Não consegui salvar: ' + (e.message || e.status || e); }
     $('retSalvar').disabled = false; renderRetornos();
+  }
+  // a Cemig respondeu de fato (não conta só a confirmação do registro nem a prorrogação do prazo)
+  const respondeu = t => !!t && !['registro', 'aguardando'].includes(t.tipo);
+  // marca "Respondido" nos protocolos que já têm resposta da Cemig nos retornos (vale para os cadastrados antes)
+  async function marcarRespondidos(){
+    const faltam = registros.filter(r => !r.retorno && (r.retornos || []).some(respondeu));
+    if(!faltam.length) return;
+    const ids = new Set(faltam.map(r => r.id));
+    try{ await alterar(l => l.map(z => ids.has(z.id) ? Object.assign({}, z, {retorno: true}) : z), `Retorno marcado pelas respostas da Cemig (${faltam.length})`); agendarGoogle(); }catch(e){}
   }
   const todosRetornos = () => registros.flatMap(r => (r.retornos || []).map(t => ({r, t})))
     .concat(semCadastro.map(t => ({r: {id: '', nome: t.nome || '', uc: t.uc || '', instalacao: t.instalacao || '', reclamacao: '', protocolo: '', responsavel: '', semCadastro: true}, t})))
@@ -2681,7 +2693,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       b.disabled = true;
       try{
         if(rid === SEM) await alterarSemCadastro(l => l.map(t => t.id === tid ? Object.assign({}, t, patch) : t), `Retorno sem cadastro atualizado (${quem()})`);
-        else await alterar(l => l.map(z => z.id !== rid ? z : Object.assign({}, z, {retornos: (z.retornos || []).map(t => t.id === tid ? Object.assign({}, t, patch) : t)})), `Retorno da Cemig atualizado (${quem()})`);
+        else await alterar(l => l.map(z => { if(z.id !== rid) return z; const rets = (z.retornos || []).map(t => t.id === tid ? Object.assign({}, t, patch) : t); return Object.assign({}, z, {retornos: rets, retorno: !!z.retorno || rets.some(respondeu)}); }), `Retorno da Cemig atualizado (${quem()})`);
+        agendarGoogle();
         retEditando = null; renderRetornos();
         await sincronizarRetornos(false);
         if(rid !== SEM){ try{ await atualizarListaFaturas(registros.find(z => z.id === rid)); }catch(e){} }
