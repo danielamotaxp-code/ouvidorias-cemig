@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611182000"></script>
-<script src="retornos.js?v=202611182000"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611182000"></script>
+<script src="solicitadas.js?v=202611182015"></script>
+<script src="retornos.js?v=202611182015"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611182015"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -42,9 +42,6 @@
   .btn:hover{border-color:#c9d0ca;background:#fafbf9}
   .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
   .btn.primary:hover{background:var(--accent-ink)}
-  .ggeral{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;padding:7px 14px;border-top:1px solid var(--line,#d5dbe3)}
-  .ggeral.ok{background:#eef8f1;color:#1e5d36}.ggeral.nao{background:#fff6e5;color:#7a4b00}
-  .ggeral b{font-weight:700}
   .gstatus{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:13.5px;color:var(--ink-2,#55606e);margin:-4px 0 12px}
   .gstatus .gdot{width:9px;height:9px;border-radius:50%;background:#9aa5b1;flex:none}
   .gstatus.ok .gdot{background:#1e874b}.gstatus.pend .gdot{background:#d9a21b}.gstatus.err .gdot{background:#c0392b}
@@ -341,6 +338,7 @@
     </div>
     <div class="hdr-actions">
       <span class="userbox" id="userBox" hidden><span class="avatar">👤</span><span id="userChip"></span><button class="linkbtn" id="btnSair" type="button">Sair</button></span>
+      <button class="btn" id="gGeral" type="button" hidden>Conectar Google</button>
       <button class="btn" id="btnFixos">⚙ Dados fixos</button>
       <a class="btn primary" href="https://www.cemig.com.br/ouvidoria/" target="_blank" rel="noopener">Abrir site da Ouvidoria ↗</a>
     </div>
@@ -352,7 +350,6 @@
     <button class="tab" data-view="planilhas" role="tab">Planilhas das ouvidorias</button>
     <button class="tab" data-view="retornos" role="tab">Retorno das ouvidorias</button>
   </div>
-  <div id="gGeral" class="ggeral" hidden></div>
 </header>
 
 <!-- =============== ABA GERAR =============== -->
@@ -2657,7 +2654,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('retLinkPlan').href = $('retAbrirPlan').href = linkRetornos(); $('retExcel').href = linkExcel(linkRetornos());
     const g = G(), on = !!(g && g.conectado && g.conectado());
     $('retG').innerHTML = on ? '<span class="gdot"></span><span>Google conectado: a planilha Retornos das Ouvidorias é atualizada ao salvar.</span>'
-      : '<span>Para preencher a planilha Retornos das Ouvidorias, conecte o Google no topo da página (Conectar Google). Os retornos ficam salvos mesmo assim.</span>';
+      : '<span>Para preencher a planilha Retornos das Ouvidorias, clique em <b>Conectar Google</b> no topo da página. Os retornos ficam salvos mesmo assim.</span>';
     const itens = todosRetornos().filter(({r, t}) => !retFiltro || (retFiltro === SEM ? r.semCadastro : t.situacao === retFiltro));
     const nSem = semCadastro.length; const bSem = $('retFiltro').querySelector('[data-rf="__sem"]'); if(bSem) bSem.textContent = `Sem ouvidoria na plataforma (${nSem})`;
     $('retLista').innerHTML = itens.length ? `<table class="ret-tab"><thead><tr><th>Data</th><th>Cliente / ouvidoria</th><th>O que a Cemig respondeu</th><th>Prazo</th><th>O que vamos fazer</th><th>Situação</th><th>Nossa resposta</th></tr></thead><tbody>${itens.map(({r, t}) => `<tr>
@@ -2694,7 +2691,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   // planilha "Retornos das Ouvidorias": uma linha por retorno (acha a linha pelo ID do retorno, na última coluna)
   const RET_COLS = 20; // A..T (S = link, T = ID do retorno)
   async function sincronizarRetornos(manual){
-    const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Conecte o Google no topo da página primeiro.'); return; }
+    const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Clique em Conectar Google no topo da página primeiro.'); return; }
     const pid = (linkRetornos().match(/\/d\/([\w-]{20,})/) || [])[1]; if(!pid) return;
     try{
       const meta = await g.planilha(pid), folha = (meta.sheets || []).find(f => f.properties.title === 'Retornos') || meta.sheets[0];
@@ -2869,7 +2866,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('solLinkPlan').href = $('solAbrirPlan').href = linkSolicitadas(); $('solExcel').href = linkExcel(linkSolicitadas());
     const g = G(), on = !!(g && g.conectado && g.conectado());
     $('solG').innerHTML = on ? '<span class="gdot"></span><span>Google conectado: a planilha Ouvidorias Solicitadas é atualizada ao cadastrar.</span>'
-      : '<span>Para mandar para a planilha Ouvidorias Solicitadas, conecte o Google no topo da página. As solicitações ficam salvas mesmo assim.</span>';
+      : '<span>Para mandar para a planilha Ouvidorias Solicitadas, clique em <b>Conectar Google</b> no topo da página. As solicitações ficam salvas mesmo assim.</span>';
     const itens = solicitacoes.map(s => ({s, r: ouvidoriaDa(s)})).filter(({r}) => solFiltro === '' || (solFiltro === 'aberta' ? r : !r))
       .sort((a, b) => String(b.s.criadoEm).localeCompare(String(a.s.criadoEm)));
     $('solLista').innerHTML = itens.length ? `<table class="ret-tab"><thead><tr><th>Data</th><th>Reclamação</th><th>Cliente / usina</th><th>Motivo</th><th>Pedido por</th><th>Situação</th><th></th></tr></thead><tbody>${itens.map(({s, r}) => `<tr>
@@ -2902,7 +2899,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   // planilha "Ouvidorias Solicitadas": uma linha por solicitação (ID na coluna U); colunas Q–T a plataforma preenche quando a ouvidoria é registrada
   async function sincronizarSolicitadas(manual){
-    const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Conecte o Google no topo da página primeiro.'); return; }
+    const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Clique em Conectar Google no topo da página primeiro.'); return; }
     const pid = (linkSolicitadas().match(/\/d\/([\w-]{20,})/) || [])[1]; if(!pid) return;
     try{
       const meta = await g.planilha(pid), folha = meta.sheets[0], sid = folha.properties.sheetId, nome = `'${folha.properties.title.replace(/'/g, "''")}'`;
@@ -2969,17 +2966,18 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   function medirCabecalho(){ const h = document.querySelector('header'); if(h) document.documentElement.style.setProperty('--hdr', h.offsetHeight + 'px'); }
   medirCabecalho(); window.addEventListener('resize', medirCabecalho);
   try{ new ResizeObserver(medirCabecalho).observe(document.querySelector('header')); }catch(e){}
-  // conexão com o Google para toda a plataforma de ouvidorias (solicitadas, retornos, planilhas…)
+  // conexão com o Google para toda a plataforma de ouvidorias: botão no topo, junto de Dados fixos
   function desenharGGeral(){
-    const box = $('gGeral'); if(!box) return;
-    const g = G(); if(!g){ box.hidden = true; return; }
+    const b = $('gGeral'); if(!b) return;
+    const g = G(); if(!g){ b.hidden = true; return; }
     const on = !!(g.conectado && g.conectado());
-    if(box.dataset.on === String(on) && !box.hidden) return;
-    box.dataset.on = String(on); box.hidden = false;
-    box.className = 'ggeral ' + (on ? 'ok' : 'nao');
-    box.innerHTML = on ? '<b>✓ Google conectado</b><span>As planilhas (solicitadas, retornos e das ouvidorias) são atualizadas com a sua conta.</span>'
-      : '<b>Google não conectado</b><button class="btn primary" type="button" id="gConectar">Conectar Google</button><span>Conecte para mandar as solicitações e os retornos para as planilhas.</span>';
-    const b = $('gConectar'); if(b) b.onclick = () => {
+    if(b.dataset.on === String(on) && !b.hidden) return;
+    b.dataset.on = String(on); b.hidden = false;
+    b.textContent = on ? '✓ Google conectado' : 'Conectar Google';
+    b.title = on ? 'As planilhas são atualizadas com a sua conta do Google.' : 'Conecte para mandar solicitações e retornos para as planilhas.';
+    b.classList.toggle('primary', !on);
+    b.onclick = () => {
+      if(on){ toast('Google já está conectado.'); return; }
       try{ sessionStorage.setItem('ouv_aba', location.hash.slice(1) || 'gerar'); }catch(e){}
       if(g.entrarPelaPagina) g.entrarPelaPagina(); else if(g.entrar) g.entrar().then(desenharGGeral).catch(e => toast(e.message || 'O login com Google não foi concluído.'));
     };
