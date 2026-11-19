@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611182045"></script>
-<script src="retornos.js?v=202611182045"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611182045"></script>
+<script src="solicitadas.js?v=202611191400"></script>
+<script src="retornos.js?v=202611191400"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611191400"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -666,7 +666,7 @@
     tel: '',
     loginCemig: '',
     motivo: 'Faturamento Microgeração',
-    cnpjww: '48.769.401/0001-37'
+    cnpjww: '55.894.242/0001-68'
   };
   let fixos = Object.assign({}, FIXOS_PADRAO);
 
@@ -1996,6 +1996,24 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       + (hist ? `<h4>Tentativas com problema no site</h4><ul class="dados-hist">${hist}</ul>` : '');
     $('dCorpo').insertAdjacentHTML('beforeend', (r.retornos || []).length ? `<h4>Retornos da Cemig</h4><ul class="dados-hist">${r.retornos.map(t => `<li><b>${esc(fmtData(t.dataISO))} · ${esc(RT.TIPOS[t.tipo] || t.tipo)}</b> — ${esc(RT.SITUACOES[t.situacao] || t.situacao || '')}<br>${esc(t.resumo || '')}${prazoRet(t) ? `<br><b>Prazo da Cemig:</b> ${esc(fmtData(prazoRet(t)))}` : ''}${t.acao || t.pedido ? `<br><b>O que vamos fazer:</b> ${esc(t.acao || t.pedido)}` : ''}${t.nossaResposta ? `<br><b>O que foi feito${t.respostaData ? ' (' + esc(fmtData(t.respostaData)) + ')' : ''}:</b> ${esc(t.nossaResposta)}` : ''}${t.arquivo ? ` <button class="copy" type="button" data-retpdf="${esc(t.arquivo)}">Ver PDF</button>` : ''}</li>`).join('')}</ul>` : '');
     $('dCorpo').querySelectorAll('[data-retpdf]').forEach(b => b.onclick = () => baixarArquivo({caminho: b.dataset.retpdf, nome: b.dataset.retpdf.split('/').pop()}, true));
+    // editar os dados guardados (ex.: corrigir o relato de uma ouvidoria que vai ser enviada de novo)
+    if(e && podeEscrever){
+      $('dCorpo').insertAdjacentHTML('afterbegin', `<div style="display:flex;justify-content:flex-end;margin-bottom:6px"><button class="anx-btn" type="button" id="dEditar">✏️ Editar dados e relato</button></div>`);
+      $('dEditar').onclick = () => {
+        $('dCorpo').innerHTML = `<p class="sub" style="margin:0 0 8px">Corrija o que precisar e salve. Vale para toda a equipe; o que foi alterado fica registrado.</p>
+          ${e.campos.map((o, i) => `<div class="field" style="margin-bottom:6px"><label>${esc(o.k)}</label><input data-de="${i}" value="${esc(o.blank ? '' : o.v)}" placeholder="${esc(o.blank || '')}"></div>`).join('')}
+          <div class="field"><label>Relato do ocorrido</label><textarea id="dEdRel" rows="12" style="width:100%;font:inherit">${esc(e.relato)}</textarea></div>
+          <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px"><button class="btn" type="button" id="dEdCanc">Cancelar</button><button class="btn primary" type="button" id="dEdSalvar">Salvar alterações</button></div>`;
+        $('dEdCanc').onclick = () => abrirDados(r.id);
+        $('dEdSalvar').onclick = async () => {
+          const campos = e.campos.map((o, i) => { const v = $('dCorpo').querySelector(`[data-de="${i}"]`).value.trim(); return Object.assign({}, o, {v, blank: v ? '' : o.blank}); });
+          const relato = $('dEdRel').value;
+          $('dEdSalvar').disabled = true;
+          const ok = await gravar(() => alterar(l => l.map(z => z.id !== r.id ? z : Object.assign({}, z, {envio: Object.assign({}, z.envio, {campos, relato, editadoEm: new Date().toISOString(), editadoPor: quem()})})), `Edita dados enviados: ${r.nome || ''} (${quem()})`));
+          if(ok){ toast('Dados atualizados ✓'); abrirDados(r.id); } else $('dEdSalvar').disabled = false;
+        };
+      };
+    }
     if(e){
       $('dCorpo').querySelectorAll('[data-dc]').forEach(b => b.onclick = () => copiar(e.campos[+b.dataset.dc].v, b));
       $('dCopRel').onclick = () => copiar(e.relato, $('dCopRel'), 'Relato copiado');
