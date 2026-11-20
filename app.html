@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611201520"></script>
-<script src="retornos.js?v=202611201520"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611191500"></script>
+<script src="solicitadas.js?v=202611201545"></script>
+<script src="retornos.js?v=202611201545"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611201545"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -1932,10 +1932,10 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
           if(ok.length) toast(`Atualizado também em: ${ok.join(', ')} ✓`);
         }catch(e){}
       }
-      try{ if(window.Acompanhamento) await window.Acompanhamento.sincronizar({google: G(), planilhas: [{nome: 'Ouvidorias Solicitadas', link: linkSolicitadas(), colorir: true, reclamacoes: [], desde: '2026-10-01'}], registros, instalacoes: [r.instalacao], protocolos: [r.protocolo]}); }catch(e){}
+      try{ if(window.Acompanhamento) await window.Acompanhamento.sincronizar({google: G(), planilhas: [{nome: 'Ouvidorias Solicitadas', link: linkSolicitadas(), colorir: true, semRetorno: true, reclamacoes: [], desde: '2026-10-01'}], registros, instalacoes: [r.instalacao], protocolos: [r.protocolo]}); }catch(e){}
       if(+r.reclamacao === 6) await atualizarAbaR6(r, d);
-      // retorno da Cemig também na planilha das faturas (Reclamação 6)
-      if(+r.reclamacao === 6 && (r.retornos || []).length && d.planilha && window.Acompanhamento){
+      // coluna Retorno da Cemig (Sim/Não) também nas abas da planilha das faturas (Reclamação 6)
+      if(+r.reclamacao === 6 && d.planilha && window.Acompanhamento){
         try{ await window.Acompanhamento.sincronizar({google: G(), planilhas: [{nome: 'Reclamação 6', link: d.planilha, reclamacoes: [6], apenasRetorno: true, desde: ''}], registros, instalacoes: [r.instalacao]}); }catch(e){}
       }
     }catch(e){ /* sem Google ou sem acesso: as planilhas são atualizadas depois pela tela de Faturas e Contratos */ }
@@ -2949,7 +2949,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 20, endColumnIndex: 21}, rows: [{values: [txt(s.id)]}], fields: 'userEnteredValue'}});
       });
       if(ped.length) await g.lote(pid, ped);
-      if(window.Acompanhamento) await window.Acompanhamento.sincronizar({google: g, planilhas: [{nome: 'Ouvidorias Solicitadas', link: linkSolicitadas(), colorir: true, reclamacoes: [], desde: '2026-10-01'}], registros});
+      if(window.Acompanhamento) await window.Acompanhamento.sincronizar({google: g, planilhas: [{nome: 'Ouvidorias Solicitadas', link: linkSolicitadas(), colorir: true, semRetorno: true, reclamacoes: [], desde: '2026-10-01'}], registros});
       if(manual) toast('Planilha Ouvidorias Solicitadas atualizada ✓');
     }catch(e){ toast('Planilha de solicitadas: ' + (e.message || e)); }
   }
