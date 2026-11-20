@@ -126,7 +126,7 @@
       nao: /(ajustad|corrigid|regularizad|atualizad)/,
       faz: 'conferir se o CPF/CNPJ do contrato é o mesmo do titular da instalação na Cemig. Se for o mesmo, a Cemig errou: abrir a Reclamação 5 com a resposta da Cemig anexada. Se for diferente, marcar o cliente “Em análise” e avisar o comercial' },
     { re: /(fatura|conta)s?[^.]{0,120}(foram emitidas|foi emitida|emitid[ao]s?|disponibilizad|enviad[ao]s?|encaminhad[ao]s?|gerad[ao]s?)/,
-      faz: 'verificar se essas faturas foram realmente emitidas e chegaram ao cliente (agência virtual da Cemig e sistema da empresa). Se não aparecerem ou o cliente não recebeu, a resposta da Cemig não resolveu' },
+      faz: 'verificar se as faturas citadas pela Cemig foram realmente emitidas e chegaram ao cliente (agência virtual da Cemig e sistema da empresa). Se não aparecerem ou o cliente não recebeu, a resposta da Cemig não resolveu' },
     { re: /(sem (a impressao do )?codigo de barras|baixo valor|valor minimo)|cobranca[^.]{0,60}(realizada|sera|feita) na (fatura|conta) (referente|seguinte|do mes|de)/,
       faz: 'conferir na fatura seguinte se o valor da fatura sem código de barras foi mesmo cobrado junto, sem cobrança em dobro'},
     { re: /refaturad|refaturamento|revisao (da|de) fatura|fatura (sera|foi) (refeita|corrigida|cancelada)|cancelamento da fatura/,
@@ -144,6 +144,7 @@
     { re: /(sera|serao) (realizad|analisad|verificad|providenciad|executad|corrigid|regularizad|efetuad|reprocessad)|em analise|encaminhad[ao] (para|a) (a )?(area|setor)|estamos (verificando|analisando|providenciando)/,
       faz: 'aguardar a Cemig concluir e, passado o prazo, conferir se foi feito de verdade' }
   ];
+  function maiuscula(t) { t = String(t || ''); return t.charAt(0).toUpperCase() + t.slice(1); }
   function curto(f, re) {
     f = f.replace(/\s+/g, ' ').trim();
     if (f.length <= 220) return f;
@@ -155,21 +156,22 @@
 
   /** O que a equipe deve fazer com o retorno: para cada afirmação da Cemig, cita a frase e conclui o que verificar. */
   function acaoSugerida(c, plano, corpo) {
-    if (c.tipo === 'registro') return 'A Cemig só confirmou o registro. Logo, aguardar a resposta até ' + br(c.prazo) + ' (' + (c.prazoDias || 10) + ' dias úteis). Se não responder até lá, cobrar a Cemig.';
+    if (c.tipo === 'registro') return 'Aguardar a resposta até ' + br(c.prazo) + ' (' + (c.prazoDias || 10) + ' dias úteis). Se não responder até lá, cobrar a Cemig.';
     var fs = frases(corpo), usadas = {}, passos = [];
-    if (c.tipo === 'pedido' && c.pedido) passos.push('A Cemig pediu: “' + curto(c.pedido) + '”. Logo, o colaborador tem que separar e enviar isso à Cemig.');
-    RACIOCINIO.forEach(function (r) {
+    if (c.tipo === 'pedido' && c.pedido) passos.push('Separar e enviar à Cemig o que ela pediu.');
+    RACIOCINIO.forEach(function (r, ir) {
       if (passos.length >= 3) return;
+      if (c.prazo && ir === RACIOCINIO.length - 1) return; // com prazo, a linha do prazo já diz para aguardar
       for (var k = 0; k < fs.length; k++) {
         var fl = sem(fs[k]).toLowerCase();
         if (usadas[k] || !r.re.test(fl) || (r.nao && r.nao.test(fl))) continue;
         usadas[k] = 1;
-        passos.push('A Cemig disse: “' + curto(fs[k], r.re) + '”. Logo, o colaborador tem que ' + r.faz + '.');
+        passos.push(maiuscula(r.faz) + '.');
         break;
       }
     });
-    if (!passos.length) passos.push('A Cemig respondeu sem dizer o que fez. Logo, o colaborador tem que verificar as faturas e a situação do cliente para saber se o problema foi resolvido.');
-    if (c.prazo) passos.push('A Cemig deu prazo até ' + br(c.prazo) + '. Logo, nessa data o colaborador tem que conferir se foi feito; se não, cobrar a Cemig.');
+    if (!passos.length && !c.prazo) passos.push('Verificar as faturas e a situação do cliente para saber se o problema foi resolvido.');
+    if (c.prazo) passos.push('Aguardar até ' + br(c.prazo) + ' e, nessa data, conferir se foi feito; se não, cobrar a Cemig.');
     if (c.tipo !== 'aguardando') passos.push('Se o problema continuar, avaliar abrir nova ouvidoria.');
     return passos.join('\n');
   }

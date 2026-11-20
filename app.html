@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611201610"></script>
-<script src="retornos.js?v=202611201610"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611201610"></script>
+<script src="solicitadas.js?v=202611201730"></script>
+<script src="retornos.js?v=202611201730"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611201730"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -2588,7 +2588,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         const c = RT.lerCampos(txt), a = RT.acharRegistro(c, registros);
         // retorno parecido com um que a equipe já corrigiu: usa a decisão de lá
         const par = RT.parecido ? RT.parecido(c, exemplosRet) : null;
-        if(par && c.tipo !== 'registro'){ c.acao = c.acao + '\nNum retorno parecido, a equipe decidiu: ' + par.ex.acao; c.tipo = par.ex.tipo || c.tipo; c.situacao = par.ex.situacao || c.situacao; c.aprendido = par.ex; }
+        if(par && c.tipo !== 'registro'){ c.acao = par.ex.acao; c.tipo = par.ex.tipo || c.tipo; c.situacao = par.ex.situacao || c.situacao; c.aprendido = par.ex; }
         Object.assign(x, {campos: c, regId: a.registro ? a.registro.id : SEM, por: a.por, tipo: c.tipo, dataISO: c.dataISO || isoHoje(), prazo: c.prazo || '',
           resumo: c.resumo, acao: c.acao, situacao: c.situacao, novaOuvidoria: c.novaOuvidoria,
           nome: c.nome || '', uc: (c.ucs || [])[0] || '', instalacao: (c.instalacoes || [])[0] || '',
@@ -2630,7 +2630,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   function retornoDe(x, caminho){
     return {id: novoId(), dataISO: x.dataISO, recebidoEm: new Date().toISOString(), por: quem(), tipo: x.tipo, resumo: (x.resumo || '').trim(), acao: (x.acao || '').trim(),
       prazo: x.prazo || '', novaOuvidoria: x.novaOuvidoria || 'avaliar', situacao: x.situacao, referencia: x.campos.referencia || '', numOuvidoria: (x.campos.numOuvidoria || [])[0] || '',
-      protocoloCitado: (x.campos.protocolos || [])[0] || '', arquivo: caminho, nomeArquivo: x.file.name, nossaResposta: '', respostaData: ''};
+      protocoloCitado: (x.campos.protocolos || [])[0] || '', uc: String(x.uc || (x.campos.ucs || [])[0] || '').replace(/\D/g, ''), arquivo: caminho, nomeArquivo: x.file.name, nossaResposta: '', respostaData: ''};
   }
   async function salvarRetornos(){
     const prontos = retFila.filter(x => x.campos && !x.salvo);
@@ -2691,13 +2691,14 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       <td>${r.semCadastro ? `<b>${esc(r.nome || 'sem nome')}</b><br><small class="ret-pill responder">não está na plataforma</small>` : `<button class="lnk" type="button" data-rdados="${esc(r.id)}">${esc(r.nome || 'sem nome')}</button>`}<br><small>${r.reclamacao ? 'Recl. ' + esc(r.reclamacao) : ''}${r.protocolo ? ' · ' + esc(r.protocolo) : ''}${t.numOuvidoria || r.numOuvidoria ? ' · Ouv. ' + esc(t.numOuvidoria || r.numOuvidoria) : ''}${r.uc ? ' · UC ' + esc(r.uc) : ''}</small>${t.arquivo ? `<br><button class="lnk" type="button" data-retpdf2="${esc(t.arquivo)}">Ver PDF</button>` : ''}</td>
       <td><small>${esc(RT.TIPOS[t.tipo] || t.tipo)}</small><br>${esc((t.resumo || '').slice(0, 220))}${(t.resumo || '').length > 220 ? '…' : ''}</td>
       <td>${esc(fmtData(prazoRet(t)))}</td>
-      <td style="white-space:pre-line">${esc((t.acao || t.pedido || '').slice(0, 700))}<br><small>Nova ouvidoria: <b>${esc(RT.NOVA[t.novaOuvidoria || 'avaliar'] || '')}</b>${t.responsavelAval ? ' · avalia: ' + esc(t.responsavelAval) : ''}</small></td>
+      <td style="white-space:pre-line">${esc((t.acao || t.pedido || '').slice(0, 700))}<br><small>Nova ouvidoria: <b>${esc(RT.NOVA[t.novaOuvidoria || 'avaliar'] || '')}${t.tipoNova ? ' · Reclamação ' + esc(t.tipoNova) : ''}</b>${t.solicitacaoId ? ' · já está em Ouvidorias solicitadas' : ''}${t.responsavelAval ? ' · avalia: ' + esc(t.responsavelAval) : ''}</small></td>
       <td><span class="ret-pill ${esc(t.situacao)}">${esc(RT.SITUACOES[t.situacao] || t.situacao)}</span></td>
       <td>${retEditando === t.id ? `<div class="ret-resp"><textarea id="rrTxt" placeholder="O que verificamos / respondemos">${esc(t.nossaResposta || '')}</textarea>
           <input type="date" id="rrData" value="${esc(t.respostaData || isoHoje())}">
           <select id="rrSit">${Object.keys(RT.SITUACOES).map(v => `<option value="${v}" ${v === t.situacao ? 'selected' : ''}>${esc(RT.SITUACOES[v])}</option>`).join('')}</select>
           <input id="rrResp" list="rrPessoas" placeholder="Responsável pela avaliação" value="${esc(t.responsavelAval || '')}"><datalist id="rrPessoas">${[...new Set(registros.map(z => z.responsavel).filter(Boolean))].map(n => `<option value="${esc(n)}">`).join('')}</datalist>
           <select id="rrNova">${Object.keys(RT.NOVA).map(v => `<option value="${v}" ${v === (t.novaOuvidoria || 'avaliar') ? 'selected' : ''}>Nova ouvidoria: ${esc(RT.NOVA[v])}</option>`).join('')}</select>
+          <select id="rrTipoNova"><option value="">Tipo da nova ouvidoria…</option>${Object.keys(SOL.TIPOS).map(n => `<option value="${n}" ${+n === +t.tipoNova ? 'selected' : ''}>${esc(SOL.TIPOS[n])}</option>`).join('')}</select>
           <span><button class="btn primary" type="button" data-rrsalva="${esc(r.id || SEM)}|${esc(t.id)}">Salvar</button> <button class="lnk" type="button" data-rrcancela="1">Cancelar</button></span></div>`
         : `${t.nossaResposta ? esc(t.nossaResposta.slice(0, 160)) + (t.respostaData ? `<br><small>${esc(fmtData(t.respostaData))}</small>` : '') + '<br>' : ''}<button class="lnk" type="button" data-rredita="${esc(t.id)}">${t.nossaResposta ? 'Editar' : 'Registrar o que foi feito'}</button>`}</td></tr>`).join('')}</tbody></table>`
       : '<p class="count-note">Nenhum retorno aqui.</p>';
@@ -2706,42 +2707,79 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('retLista').querySelectorAll('[data-rredita]').forEach(b => b.onclick = () => { retEditando = b.dataset.rredita; renderRetornos(); });
     $('retLista').querySelectorAll('[data-rrcancela]').forEach(b => b.onclick = () => { retEditando = null; renderRetornos(); });
     $('retLista').querySelectorAll('[data-rrsalva]').forEach(b => b.onclick = async () => {
-      const [rid, tid] = b.dataset.rrsalva.split('|'), patch = {nossaResposta: $('rrTxt').value.trim(), respostaData: $('rrData').value, situacao: $('rrSit').value, novaOuvidoria: $('rrNova').value, responsavelAval: $('rrResp').value.trim(), respondidoPor: quem()};
+      const [rid, tid] = b.dataset.rrsalva.split('|'), patch = {nossaResposta: $('rrTxt').value.trim(), respostaData: $('rrData').value, situacao: $('rrSit').value, novaOuvidoria: $('rrNova').value, tipoNova: $('rrTipoNova').value ? +$('rrTipoNova').value : '', responsavelAval: $('rrResp').value.trim(), respondidoPor: quem()};
+      if(patch.novaOuvidoria === 'sim' && !patch.tipoNova){ toast('Escolha o tipo da nova ouvidoria.'); return; }
       b.disabled = true;
       try{
         if(rid === SEM) await alterarSemCadastro(l => l.map(t => t.id === tid ? Object.assign({}, t, patch) : t), `Retorno sem cadastro atualizado (${quem()})`);
         else await alterar(l => l.map(z => { if(z.id !== rid) return z; const rets = (z.retornos || []).map(t => t.id === tid ? Object.assign({}, t, patch) : t); return Object.assign({}, z, {retornos: rets, retorno: !!z.retorno || rets.some(respondeu)}); }), `Retorno da Cemig atualizado (${quem()})`);
         agendarGoogle();
         retEditando = null; renderRetornos();
+        await criarSolicitacoesDosRetornos();
         await sincronizarRetornos(false);
         if(rid !== SEM){ try{ await atualizarListaFaturas(registros.find(z => z.id === rid)); }catch(e){} }
       }catch(e){ toast('Não consegui salvar: ' + (e.message || e.status || e)); b.disabled = false; }
     });
   }
-  // planilha "Retornos das Ouvidorias": uma linha por retorno (acha a linha pelo ID do retorno, na última coluna)
-  const RET_COLS = 20; // A..T (S = link, T = ID do retorno)
+  // planilha "Retornos das Ouvidorias": uma linha por retorno (acha a linha pelo ID do retorno, na coluna U).
+  // Colunas L a R podem ser editadas na planilha: a plataforma traz essas mudanças de volta (a coluna V, escondida, guarda o que a plataforma gravou por último).
+  const RET_COLS = 21; // A..U (T = link, U = ID do retorno)
+  const RET_EDIT = [11, 12, 13, 14, 15, 16, 17]; // L o que vamos fazer · M nova ouvidoria? · N tipo da nova · O responsável · P o que foi feito · Q data · R situação
+  const deBR = v => { const m = String(v || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/); return m ? `${m[3]}-${m[2]}-${m[1]}` : ''; };
+  const chaveDe = (mapa, rot) => Object.keys(mapa).find(k => mapa[k] === rot) || '';
+  function linhaRet(r, t){
+    return [fmtData(t.dataISO), r.nome || '', r.instalacao || '', r.uc || t.uc || '', r.reclamacao ? 'Reclamação ' + r.reclamacao : '', r.protocolo || t.protocoloCitado || '', t.numOuvidoria || r.numOuvidoria || '',
+      r.responsavel || '', RT.TIPOS[t.tipo] || t.tipo || '', t.resumo || '', fmtData(prazoRet(t)), t.acao || t.pedido || '', RT.NOVA[t.novaOuvidoria || 'avaliar'] || '', t.tipoNova ? 'Reclamação ' + t.tipoNova : '',
+      t.responsavelAval || '', t.nossaResposta || '', fmtData(t.respostaData), RT.SITUACOES[t.situacao] || t.situacao || '', r.semCadastro ? 'Não (feita antes da plataforma)' : 'Sim'];
+  }
+  // o que mudou na planilha (célula diferente do que a plataforma gravou por último) vira alteração no retorno
+  function patchDaPlanilha(linha, gravado){
+    const p = {}, cel = k => String(linha[k] == null ? '' : linha[k]);
+    const mudou = k => gravado && cel(k) !== String(gravado[k] == null ? '' : gravado[k]);
+    if(mudou(11)) p.acao = cel(11);
+    if(mudou(12)){ const k = chaveDe(RT.NOVA, cel(12)); if(k) p.novaOuvidoria = k; }
+    if(mudou(13)){ const n = (cel(13).match(/\d+/) || [])[0]; p.tipoNova = n ? +n : ''; }
+    if(mudou(14)) p.responsavelAval = cel(14);
+    if(mudou(15)) p.nossaResposta = cel(15);
+    if(mudou(16)) p.respostaData = deBR(cel(16));
+    if(mudou(17)){ const k = chaveDe(RT.SITUACOES, cel(17)); if(k) p.situacao = k; }
+    return p;
+  }
   async function sincronizarRetornos(manual){
     const g = G(); if(!g || !g.conectado || !g.conectado()){ if(manual) toast('Clique em Conectar Google no topo da página primeiro.'); return; }
     const pid = (linkRetornos().match(/\/d\/([\w-]{20,})/) || [])[1]; if(!pid) return;
     try{
       const meta = await g.planilha(pid), folha = (meta.sheets || []).find(f => f.properties.title === 'Retornos') || meta.sheets[0];
       const sid = folha.properties.sheetId, nome = `'${folha.properties.title.replace(/'/g, "''")}'`;
-      const m = await g.ler(pid, nome + '!A1:T');
+      let m = await g.ler(pid, nome + '!A1:V');
       const linhaDe = {}; m.forEach((l, i) => { if(i > 0 && l[RET_COLS - 1]) linhaDe[l[RET_COLS - 1]] = i; });
+      // 1) traz as edições feitas na planilha
+      const patchesReg = {}, patchesSem = {};
+      todosRetornos().forEach(({r, t}) => {
+        const i = linhaDe[t.id]; if(i == null) return;
+        let gravado = null; try{ gravado = JSON.parse(m[i][RET_COLS] || 'null'); }catch(e){}
+        const p = patchDaPlanilha(m[i], gravado); if(!Object.keys(p).length) return;
+        p.editadoNaPlanilha = new Date().toISOString();
+        if(r.semCadastro) patchesSem[t.id] = p; else (patchesReg[r.id] = patchesReg[r.id] || {})[t.id] = p;
+      });
+      const nReg = Object.keys(patchesReg).length, nSem = Object.keys(patchesSem).length;
+      if(nReg) await alterar(l => l.map(z => !patchesReg[z.id] ? z : Object.assign({}, z, {retornos: (z.retornos || []).map(t => patchesReg[z.id][t.id] ? Object.assign({}, t, patchesReg[z.id][t.id]) : t)})), `Retornos editados na planilha (${quem()})`);
+      if(nSem) await alterarSemCadastro(l => l.map(t => patchesSem[t.id] ? Object.assign({}, t, patchesSem[t.id]) : t), `Retornos sem cadastro editados na planilha (${quem()})`);
+      if(nReg || nSem){ toast(`${Object.values(patchesReg).reduce((a, x) => a + Object.keys(x).length, 0) + nSem} alteração(ões) da planilha trazida(s) para a plataforma ✓`); renderRetornos(); }
+      await criarSolicitacoesDosRetornos();
+      // 2) grava a versão da plataforma na planilha
       let prox = Math.max(m.length, 1);
       const cor = {verificar: {red: .99, green: .89, blue: .88}, nova_ouvidoria: {red: .98, green: .8, blue: .78}, responder: {red: .99, green: .89, blue: .88}, aguardando_cemig: {red: 1, green: .95, blue: .81}, respondido: {red: .89, green: .93, blue: .99}, encerrado: {red: .89, green: .96, blue: .91}};
       const ped = [];
       todosRetornos().slice().reverse().forEach(({r, t}) => {
-        const v = [fmtData(t.dataISO), r.nome || '', r.instalacao || '', r.uc || '', r.reclamacao ? 'Reclamação ' + r.reclamacao : '', r.protocolo || t.protocoloCitado || '', t.numOuvidoria || r.numOuvidoria || '',
-          r.responsavel || '', RT.TIPOS[t.tipo] || t.tipo || '', t.resumo || '', fmtData(prazoRet(t)), t.acao || t.pedido || '', RT.NOVA[t.novaOuvidoria || 'avaliar'] || '', t.responsavelAval || '', t.nossaResposta || '', fmtData(t.respostaData),
-          RT.SITUACOES[t.situacao] || t.situacao || '', r.semCadastro ? 'Não (feita antes da plataforma)' : 'Sim'];
+        const v = linhaRet(r, t), gravar = JSON.stringify(Object.fromEntries(RET_EDIT.map(k => [k, v[k]])));
         const lin = linhaDe[t.id] != null ? linhaDe[t.id] : prox++;
         const atual = m[lin] || [];
-        if(linhaDe[t.id] != null && v.every((x, k) => String(atual[k] == null ? '' : atual[k]) === String(x))) return;
-        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 0, endColumnIndex: RET_COLS},
+        if(linhaDe[t.id] != null && v.every((x, k) => String(atual[k] == null ? '' : atual[k]) === String(x)) && String(atual[RET_COLS] || '') === gravar) return;
+        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 0, endColumnIndex: RET_COLS + 1},
           rows: [{values: v.map(x => ({userEnteredValue: {stringValue: String(x)}})).concat([
             r.semCadastro ? {userEnteredValue: {stringValue: ''}} : {userEnteredValue: {stringValue: 'Abrir ouvidoria'}, textFormatRuns: [{startIndex: 0, format: {link: {uri: PORTAL_CAD + r.id}}}]},
-            {userEnteredValue: {stringValue: t.id}}])}], fields: 'userEnteredValue,textFormatRuns'}});
+            {userEnteredValue: {stringValue: t.id}}, {userEnteredValue: {stringValue: gravar}}])}], fields: 'userEnteredValue,textFormatRuns'}});
         ped.push({repeatCell: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 0, endColumnIndex: RET_COLS},
           cell: {userEnteredFormat: {backgroundColor: cor[t.situacao] || {red: 1, green: 1, blue: 1}, wrapStrategy: 'WRAP', verticalAlignment: 'TOP'}}, fields: 'userEnteredFormat.backgroundColor,userEnteredFormat.wrapStrategy,userEnteredFormat.verticalAlignment'}});
         ped.push({updateBorders: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 0, endColumnIndex: RET_COLS},
@@ -2751,6 +2789,33 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       if(ped.length) await g.lote(pid, ped);
       if(manual) toast('Planilha Retornos das Ouvidorias atualizada ✓');
     }catch(e){ toast('Planilha de retornos: ' + (e.message || e)); }
+  }
+  // "Abrir nova ouvidoria? Sim" + tipo escolhido → vira um pedido em Ouvidorias solicitadas, com os dados que já temos
+  async function criarSolicitacoesDosRetornos(){
+    const novas = [], marcarReg = {}, marcarSem = {};
+    todosRetornos().forEach(({r, t}) => {
+      if(t.novaOuvidoria !== 'sim' || !t.tipoNova || t.solicitacaoId) return;
+      const reg = r.semCadastro ? null : registros.find(z => z.id === r.id);
+      const id = novoId(), campos = ((reg && reg.envio && reg.envio.campos) || []);
+      const campo = re => ((campos.find(c => re.test(c.k)) || {}).v || '').trim();
+      const dados = {nome: r.nome || '', instalacao: String(r.instalacao || '').replace(/\D/g, ''), uc: String(r.uc || t.uc || '').replace(/\D/g, ''),
+        doc: ((campos.find(c => /cpf|cnpj/i.test(c.k) && !/watt/i.test(c.k)) || {}).v || '').replace(/\D/g, ''),
+        usinaNome: campo(/nome da usina/i), usinaInst: '', usinaUc: '',
+        outros: `Retorno da Cemig de ${fmtData(t.dataISO)}${r.protocolo ? ' · protocolo anterior ' + r.protocolo : ''}${t.numOuvidoria ? ' · ouvidoria ' + t.numOuvidoria : ''}`, obs: t.nossaResposta || ''};
+      novas.push({id, criadoEm: new Date().toISOString(), por: t.responsavelAval || quem(), tipo: +t.tipoNova, motivo: 'Nova ouvidoria após o retorno da Cemig', dados, print: '', printUsina: '', retorno: t.arquivo ? [{caminho: t.arquivo, nome: t.nomeArquivo || 'retorno.pdf', tipo: 'application/pdf'}] : [], origem: {retornoId: t.id, registroId: r.id || ''}});
+      if(r.semCadastro) marcarSem[t.id] = id; else (marcarReg[r.id] = marcarReg[r.id] || {})[t.id] = id;
+    });
+    if(!novas.length) return 0;
+    try{
+      const d = await alterarArqJson(ARQ_SOL, o => Object.assign({}, o, {solicitacoes: (o.solicitacoes || []).concat(novas)}), `${novas.length} nova(s) ouvidoria(s) pedida(s) pelos retornos (${quem()})`);
+      solicitacoes = d.solicitacoes;
+      if(Object.keys(marcarReg).length) await alterar(l => l.map(z => !marcarReg[z.id] ? z : Object.assign({}, z, {retornos: (z.retornos || []).map(t => marcarReg[z.id][t.id] ? Object.assign({}, t, {solicitacaoId: marcarReg[z.id][t.id]}) : t)})), `Retornos: nova ouvidoria pedida (${quem()})`);
+      if(Object.keys(marcarSem).length) await alterarSemCadastro(l => l.map(t => marcarSem[t.id] ? Object.assign({}, t, {solicitacaoId: marcarSem[t.id]}) : t), `Retornos sem cadastro: nova ouvidoria pedida (${quem()})`);
+      toast(`${novas.length} nova(s) ouvidoria(s) foi(ram) para Ouvidorias solicitadas ✓`);
+      try{ await sincronizarSolicitadas(false); }catch(e){}
+      renderRetornos();
+    }catch(e){ toast('Não consegui mandar para Ouvidorias solicitadas: ' + (e.message || e)); }
+    return novas.length;
   }
   (function ligarRetornos(){
     const drop = $('retDrop'); if(!drop) return;
@@ -2976,7 +3041,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('viewRetornos').hidden = v !== 'retornos';
     $('viewSolicitadas').hidden = v !== 'solicitadas';
     if(v === 'solicitadas'){ renderSolicitadas(); lerSolicitacoes().then(renderSolicitadas); }
-    if(v === 'retornos'){ renderRetornos(); lerSemCadastro().then(renderRetornos); lerExemplos(); }
+    if(v === 'retornos'){ renderRetornos(); lerSemCadastro().then(renderRetornos).then(() => sincronizarRetornos(false)); lerExemplos(); } // traz o que foi editado na planilha
     if(v === 'planilhas') abrirPlanilhas();
     document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.view === v));
     if(v === 'registro') renderRegistro();
