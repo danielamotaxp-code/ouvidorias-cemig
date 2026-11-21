@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611201730"></script>
-<script src="retornos.js?v=202611201730"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611201730"></script>
+<script src="solicitadas.js?v=202611211900"></script>
+<script src="retornos.js?v=202611211900"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611211900"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -311,6 +311,17 @@
   .sol-exemplo .con{margin:10px 0 12px;display:flex;align-items:center;gap:8px}.sol-exemplo .con i{width:16px;height:16px;border-radius:50%;background:#138a13;display:inline-block}
   .sol-exemplo .g{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 18px}.sol-exemplo .g small{display:block;font-size:12.5px;color:#333}.sol-exemplo .g div{font-size:11.5px;color:#555}
   @media (max-width:720px){.sol-exemplo .g{grid-template-columns:repeat(2,1fr)}}
+  .evo-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 18px}
+  .evo-card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff}
+  .evo-card b{display:block;font-size:1.7rem;line-height:1.1}.evo-card small{color:var(--muted,#667)}
+  .evo-sobe{color:#1e874b;font-weight:600}.evo-desce{color:#b3261e;font-weight:600}
+  .evo-barras{display:flex;align-items:flex-end;gap:3px;height:150px;border-bottom:1px solid var(--line);padding-top:16px}
+  .evo-barras .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0;height:100%}
+  .evo-barras .b i{display:block;width:100%;background:#d23c80;border-radius:4px 4px 0 0;min-height:1px}
+  .evo-barras .b span{font-size:11px;color:#333;margin-bottom:2px}
+  .evo-rot{display:flex;gap:3px}.evo-rot span{flex:1;text-align:center;font-size:10.5px;color:#667;overflow:hidden;white-space:nowrap}
+  .evo-tab{border-collapse:collapse;width:100%;font-size:14px;margin-top:6px}.evo-tab th,.evo-tab td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:right}.evo-tab th:first-child,.evo-tab td:first-child{text-align:left}
+  .evo-sec{margin:22px 0 6px}
   .sol-msg{width:100%;min-height:56px;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
   .sol-card{display:grid;grid-template-columns:minmax(200px,320px) 1fr;gap:14px}
   .sol-card img{width:100%;border:1px solid var(--line);border-radius:8px;cursor:zoom-in}
@@ -349,6 +360,7 @@
     <button class="tab" data-view="registro" role="tab">Registro de protocolos</button>
     <button class="tab" data-view="planilhas" role="tab">Planilhas das ouvidorias</button>
     <button class="tab" data-view="retornos" role="tab">Retorno das ouvidorias</button>
+    <button class="tab" data-view="evolucao" role="tab">Evolução</button>
   </div>
 </header>
 
@@ -419,6 +431,15 @@
 <!-- =============== ABA REGISTRO =============== -->
 <!-- =============== ABA PLANILHAS (Reclamação 6 das faturas + outras planilhas) =============== -->
 <div id="viewPlanilhas" hidden><iframe id="frPlanilhas" title="Planilhas das ouvidorias" style="display:block;width:100%;border:0;min-height:calc(100vh - var(--hdr, 120px))"></iframe></div>
+
+<!-- =============== ABA EVOLUÇÃO =============== -->
+<div id="viewEvolucao" class="reg" hidden>
+  <div class="reg-head"><div><h2>Evolução das ouvidorias</h2>
+    <p class="ret-sub">Quantas ouvidorias estamos abrindo por dia e por semana, e como isso está mudando. Conta pela data de abertura; atualiza sozinho quando alguém registra.</p></div>
+    <div class="chips" id="evoFiltro"><button class="chip on" data-ef="enviada">Enviadas</button><button class="chip" data-ef="">Todas (com não enviadas)</button></div>
+  </div>
+  <div id="evoCorpo"></div>
+</div>
 
 <!-- =============== ABA OUVIDORIAS SOLICITADAS =============== -->
 <div id="viewSolicitadas" class="reg" hidden>
@@ -2102,6 +2123,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   const ICON_COPY = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>';
 
   function renderRegistro(){
+    try{ if($('viewEvolucao') && !$('viewEvolucao').hidden) renderEvolucao(); }catch(e){}
     try{ if($('viewRetornos') && !$('viewRetornos').hidden) renderRetornos(); }catch(e){}
     try{ desenharPastaVideos(); setTimeout(() => conferirVideosDrive(false), 0); }catch(e){}
     const noSt = r => statusAtual === 'todos' || statusReg(r) === statusAtual, doGr = r => grupoReg(r) === grupoAtual;
@@ -3032,14 +3054,74 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('solFiltro').querySelectorAll('[data-sf]').forEach(b => b.onclick = () => { solFiltro = b.dataset.sf; $('solFiltro').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); renderSolicitadas(); });
   })();
 
+  // ---------- Evolução: ouvidorias por dia, semana e pessoa ----------
+  let evoFiltro = 'enviada';
+  const isoDia = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const segundaDe = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoDia(d); };
+  const diaReg = r => String((r.status === 'pendente' ? (r.ultimaTentativa || r.criadoEm) : (r.dataAbertura || r.criadoEm)) || '').slice(0, 10);
+  const ehAdminPlat = () => { try{ return window.PLAT && PLAT.usuario && PLAT.usuario.papel === 'admin'; }catch(e){ return false; } };
+  function variacao(atual, antes){
+    if(!antes) return atual ? '<span class="evo-sobe">novo</span>' : '';
+    const p = Math.round((atual - antes) / antes * 100);
+    return p > 0 ? `<span class="evo-sobe">▲ ${p}%</span>` : p < 0 ? `<span class="evo-desce">▼ ${-p}%</span>` : '<span>= igual</span>';
+  }
+  function barras(pontos){
+    const max = Math.max(1, ...pontos.map(p => p.v));
+    return `<div class="evo-barras">${pontos.map(p => `<div class="b" title="${esc(p.t)}: ${p.v}"><span>${p.v || ''}</span><i style="height:${Math.round(p.v / max * 100)}%"></i></div>`).join('')}</div>
+      <div class="evo-rot">${pontos.map(p => `<span>${esc(p.r)}</span>`).join('')}</div>`;
+  }
+  function renderEvolucao(){
+    const box = $('evoCorpo'); if(!box) return;
+    const regs = registros.filter(r => (!evoFiltro || statusReg(r) === evoFiltro) && diaReg(r));
+    const hoje = isoDia(new Date()), ontem = isoDia(new Date(Date.now() - 864e5)), semAtual = segundaDe(hoje);
+    const semAnt = isoDia(new Date(new Date(semAtual + 'T12:00:00').getTime() - 7 * 864e5)), mes = hoje.slice(0, 7);
+    const porDia = {}, porSem = {}; regs.forEach(r => { const d = diaReg(r); porDia[d] = (porDia[d] || 0) + 1; const s = segundaDe(d); porSem[s] = (porSem[s] || 0) + 1; });
+    const cnt = f => regs.filter(f).length;
+    const nHoje = porDia[hoje] || 0, nOntem = porDia[ontem] || 0, nSem = porSem[semAtual] || 0, nSemAnt = porSem[semAnt] || 0;
+    const nMes = cnt(r => diaReg(r).slice(0, 7) === mes);
+    const mesAntD = new Date(); mesAntD.setDate(1); mesAntD.setMonth(mesAntD.getMonth() - 1);
+    const mesAnt = isoDia(mesAntD).slice(0, 7), nMesAnt = cnt(r => diaReg(r).slice(0, 7) === mesAnt);
+    // últimos 30 dias e últimas 12 semanas
+    const dias = []; for(let i = 29; i >= 0; i--){ const d = new Date(Date.now() - i * 864e5), k = isoDia(d); dias.push({v: porDia[k] || 0, r: d.getDate(), t: fmtData(k)}); }
+    const semanas = []; for(let i = 11; i >= 0; i--){ const k = isoDia(new Date(new Date(semAtual + 'T12:00:00').getTime() - i * 7 * 864e5)); semanas.push({k, v: porSem[k] || 0, r: fmtData(k).slice(0, 5), t: 'Semana de ' + fmtData(k)}); }
+    const diasUteis = dias.slice(-7).filter(d => d.v).length || 1, mediaDia = (dias.slice(-7).reduce((a, d) => a + d.v, 0) / diasUteis).toFixed(1);
+    let html = `<div class="evo-cards">
+      <div class="evo-card"><small>Hoje</small><b>${nHoje}</b>${variacao(nHoje, nOntem)} <small>vs. ontem (${nOntem})</small></div>
+      <div class="evo-card"><small>Esta semana</small><b>${nSem}</b>${variacao(nSem, nSemAnt)} <small>vs. semana passada (${nSemAnt})</small></div>
+      <div class="evo-card"><small>Este mês</small><b>${nMes}</b>${variacao(nMes, nMesAnt)} <small>vs. mês passado (${nMesAnt})</small></div>
+      <div class="evo-card"><small>Média por dia trabalhado (7 dias)</small><b>${mediaDia}</b></div>
+      <div class="evo-card"><small>Total</small><b>${regs.length}</b></div></div>
+      <h3 class="evo-sec">Por dia (últimos 30 dias)</h3>${barras(dias)}
+      <h3 class="evo-sec">Por semana (últimas 12 semanas, começando na segunda)</h3>${barras(semanas)}
+      <table class="evo-tab"><thead><tr><th>Semana</th><th>Ouvidorias</th><th>Evolução</th></tr></thead><tbody>${semanas.slice().reverse().map((s, i, a) => `<tr><td>${esc(s.t)}</td><td>${s.v}</td><td>${a[i + 1] ? variacao(s.v, a[i + 1].v) : ''}</td></tr>`).join('')}</tbody></table>`;
+    // por pessoa: só a administradora vê (pedido da Daniela)
+    if(ehAdminPlat()){
+      const pessoas = [...new Set(regs.map(r => String(r.responsavel || 'Sem nome').trim()))].sort();
+      const ult = semanas.slice(-6);
+      const conta = (p, f) => regs.filter(r => String(r.responsavel || 'Sem nome').trim() === p && f(r)).length;
+      html += `<h3 class="evo-sec">Por pessoa <small style="font-weight:400;color:#667">(só administradoras veem)</small></h3>
+        <table class="evo-tab"><thead><tr><th>Pessoa</th><th>Hoje</th><th>Esta semana</th><th>Semana passada</th><th>Evolução</th><th>Este mês</th>${ult.map(s => `<th>${esc(s.r)}</th>`).join('')}<th>Total</th></tr></thead><tbody>
+        ${pessoas.map(p => { const a = conta(p, r => segundaDe(diaReg(r)) === semAtual), b = conta(p, r => segundaDe(diaReg(r)) === semAnt);
+          return `<tr><td><b>${esc(p)}</b></td><td>${conta(p, r => diaReg(r) === hoje)}</td><td>${a}</td><td>${b}</td><td>${variacao(a, b)}</td><td>${conta(p, r => diaReg(r).slice(0, 7) === mes)}</td>${ult.map(s => `<td>${conta(p, r => segundaDe(diaReg(r)) === s.k)}</td>`).join('')}<td><b>${conta(p, () => true)}</b></td></tr>`; }).join('')}
+        </tbody></table>`;
+    }
+    box.innerHTML = html;
+  }
+  (function ligarEvolucao(){
+    const f = $('evoFiltro'); if(!f) return;
+    f.querySelectorAll('[data-ef]').forEach(b => b.onclick = () => { evoFiltro = b.dataset.ef; f.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === b)); renderEvolucao(); });
+  })();
+
   // ---------- abas ----------
   function mostrar(view){
-    const v = ['registro', 'planilhas', 'retornos', 'solicitadas'].includes(view) ? view : 'gerar';
+    const v = ['registro', 'planilhas', 'retornos', 'solicitadas', 'evolucao'].includes(view) ? view : 'gerar';
     $('viewGerar').hidden = v !== 'gerar';
     $('viewRegistro').hidden = v !== 'registro';
     $('viewPlanilhas').hidden = v !== 'planilhas';
     $('viewRetornos').hidden = v !== 'retornos';
     $('viewSolicitadas').hidden = v !== 'solicitadas';
+    $('viewEvolucao').hidden = v !== 'evolucao';
+    if(v === 'evolucao') renderEvolucao();
     if(v === 'solicitadas'){ renderSolicitadas(); lerSolicitacoes().then(renderSolicitadas); }
     if(v === 'retornos'){ renderRetornos(); lerSemCadastro().then(renderRetornos).then(() => sincronizarRetornos(false)); lerExemplos(); } // traz o que foi editado na planilha
     if(v === 'planilhas') abrirPlanilhas();
