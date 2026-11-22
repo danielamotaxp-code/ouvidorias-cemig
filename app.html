@@ -8,9 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="config.js"></script>
-<script src="solicitadas.js?v=202611211900"></script>
-<script src="retornos.js?v=202611211900"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611211900"></script>
+<script src="solicitadas.js?v=202611220900"></script>
+<script src="retornos.js?v=202611220900"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611220900"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -316,10 +316,10 @@
   .evo-card b{display:block;font-size:1.7rem;line-height:1.1}.evo-card small{color:var(--muted,#667)}
   .evo-sobe{color:#1e874b;font-weight:600}.evo-desce{color:#b3261e;font-weight:600}
   .evo-barras{display:flex;align-items:flex-end;gap:3px;height:150px;border-bottom:1px solid var(--line);padding-top:16px}
-  .evo-barras .b{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0;height:100%}
+  .evo-barras .b{flex:1;max-width:96px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;min-width:0;height:100%}
   .evo-barras .b i{display:block;width:100%;background:#d23c80;border-radius:4px 4px 0 0;min-height:1px}
   .evo-barras .b span{font-size:11px;color:#333;margin-bottom:2px}
-  .evo-rot{display:flex;gap:3px}.evo-rot span{flex:1;text-align:center;font-size:10.5px;color:#667;overflow:hidden;white-space:nowrap}
+  .evo-rot{display:flex;gap:3px}.evo-rot span{flex:1;max-width:96px;text-align:center;font-size:10.5px;color:#667;overflow:hidden;white-space:nowrap}
   .evo-tab{border-collapse:collapse;width:100%;font-size:14px;margin-top:6px}.evo-tab th,.evo-tab td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:right}.evo-tab th:first-child,.evo-tab td:first-child{text-align:left}
   .evo-sec{margin:22px 0 6px}
   .sol-msg{width:100%;min-height:56px;font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
@@ -435,7 +435,7 @@
 <!-- =============== ABA EVOLUÇÃO =============== -->
 <div id="viewEvolucao" class="reg" hidden>
   <div class="reg-head"><div><h2>Evolução das ouvidorias</h2>
-    <p class="ret-sub">Quantas ouvidorias estamos abrindo por dia e por semana, e como isso está mudando. Conta pela data de abertura; atualiza sozinho quando alguém registra.</p></div>
+    <p class="ret-sub">Quantas ouvidorias estamos abrindo por semana e por pessoa. Conta pela data de abertura; atualiza sozinho quando alguém registra.</p></div>
     <div class="chips" id="evoFiltro"><button class="chip on" data-ef="enviada">Enviadas</button><button class="chip" data-ef="">Todas (com não enviadas)</button></div>
   </div>
   <div id="evoCorpo"></div>
@@ -3059,6 +3059,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   const isoDia = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   const segundaDe = iso => { const d = new Date(iso + 'T12:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return isoDia(d); };
   const diaReg = r => String((r.status === 'pendente' ? (r.ultimaTentativa || r.criadoEm) : (r.dataAbertura || r.criadoEm)) || '').slice(0, 10);
+  const faixaSemana = seg => { const a = new Date(seg + 'T12:00:00'), b = new Date(a.getTime() + 6 * 864e5), f = d => String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0'); return f(a) + ' a ' + f(b); };
   const ehAdminPlat = () => { try{ return window.PLAT && PLAT.usuario && PLAT.usuario.papel === 'admin'; }catch(e){ return false; } };
   function variacao(atual, antes){
     if(!antes) return atual ? '<span class="evo-sobe">novo</span>' : '';
@@ -3083,7 +3084,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const mesAnt = isoDia(mesAntD).slice(0, 7), nMesAnt = cnt(r => diaReg(r).slice(0, 7) === mesAnt);
     // últimos 30 dias e últimas 12 semanas
     const dias = []; for(let i = 29; i >= 0; i--){ const d = new Date(Date.now() - i * 864e5), k = isoDia(d); dias.push({v: porDia[k] || 0, r: d.getDate(), t: fmtData(k)}); }
-    const semanas = []; for(let i = 11; i >= 0; i--){ const k = isoDia(new Date(new Date(semAtual + 'T12:00:00').getTime() - i * 7 * 864e5)); semanas.push({k, v: porSem[k] || 0, r: fmtData(k).slice(0, 5), t: 'Semana de ' + fmtData(k)}); }
+    const semanas = []; for(let i = 11; i >= 0; i--){ const k = isoDia(new Date(new Date(semAtual + 'T12:00:00').getTime() - i * 7 * 864e5)); semanas.push({k, v: porSem[k] || 0, r: faixaSemana(k), t: faixaSemana(k)}); }
+    while(semanas.length > 1 && !semanas[0].v) semanas.shift(); // começa na primeira semana com ouvidoria
     const diasUteis = dias.slice(-7).filter(d => d.v).length || 1, mediaDia = (dias.slice(-7).reduce((a, d) => a + d.v, 0) / diasUteis).toFixed(1);
     let html = `<div class="evo-cards">
       <div class="evo-card"><small>Hoje</small><b>${nHoje}</b>${variacao(nHoje, nOntem)} <small>vs. ontem (${nOntem})</small></div>
@@ -3091,20 +3093,22 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       <div class="evo-card"><small>Este mês</small><b>${nMes}</b>${variacao(nMes, nMesAnt)} <small>vs. mês passado (${nMesAnt})</small></div>
       <div class="evo-card"><small>Média por dia trabalhado (7 dias)</small><b>${mediaDia}</b></div>
       <div class="evo-card"><small>Total</small><b>${regs.length}</b></div></div>
-      <h3 class="evo-sec">Por dia (últimos 30 dias)</h3>${barras(dias)}
-      <h3 class="evo-sec">Por semana (últimas 12 semanas, começando na segunda)</h3>${barras(semanas)}
+      <h3 class="evo-sec">Por semana (de segunda a domingo)</h3>${barras(semanas)}
       <table class="evo-tab"><thead><tr><th>Semana</th><th>Ouvidorias</th><th>Evolução</th></tr></thead><tbody>${semanas.slice().reverse().map((s, i, a) => `<tr><td>${esc(s.t)}</td><td>${s.v}</td><td>${a[i + 1] ? variacao(s.v, a[i + 1].v) : ''}</td></tr>`).join('')}</tbody></table>`;
-    // por pessoa: só a administradora vê (pedido da Daniela)
-    if(ehAdminPlat()){
-      const pessoas = [...new Set(regs.map(r => String(r.responsavel || 'Sem nome').trim()))].sort();
-      const ult = semanas.slice(-6);
-      const conta = (p, f) => regs.filter(r => String(r.responsavel || 'Sem nome').trim() === p && f(r)).length;
-      html += `<h3 class="evo-sec">Por pessoa <small style="font-weight:400;color:#667">(só administradoras veem)</small></h3>
-        <table class="evo-tab"><thead><tr><th>Pessoa</th><th>Hoje</th><th>Esta semana</th><th>Semana passada</th><th>Evolução</th><th>Este mês</th>${ult.map(s => `<th>${esc(s.r)}</th>`).join('')}<th>Total</th></tr></thead><tbody>
-        ${pessoas.map(p => { const a = conta(p, r => segundaDe(diaReg(r)) === semAtual), b = conta(p, r => segundaDe(diaReg(r)) === semAnt);
-          return `<tr><td><b>${esc(p)}</b></td><td>${conta(p, r => diaReg(r) === hoje)}</td><td>${a}</td><td>${b}</td><td>${variacao(a, b)}</td><td>${conta(p, r => diaReg(r).slice(0, 7) === mes)}</td>${ult.map(s => `<td>${conta(p, r => segundaDe(diaReg(r)) === s.k)}</td>`).join('')}<td><b>${conta(p, () => true)}</b></td></tr>`; }).join('')}
-        </tbody></table>`;
-    }
+    // por pessoa: todos veem; quem registrar a primeira ouvidoria entra sozinho. Sem % de crescimento (comparava gente que começou depois);
+    // mostra quanto cada um fez e a parte de cada um no total
+    const nomeDe = r => String(r.responsavel || 'Sem nome').trim() || 'Sem nome';
+    const pessoas = [...new Set(regs.map(nomeDe))];
+    const conta = (p, f) => regs.filter(r => nomeDe(r) === p && f(r)).length;
+    const totSem = regs.filter(r => segundaDe(diaReg(r)) === semAtual).length || 1, totMes = nMes || 1, tot = regs.length || 1;
+    const ult = semanas.slice(-4);
+    const linhas = pessoas.map(p => ({p, hoje: conta(p, r => diaReg(r) === hoje), sem: conta(p, r => segundaDe(diaReg(r)) === semAtual), mes: conta(p, r => diaReg(r).slice(0, 7) === mes),
+      total: conta(p, () => true), semanas: ult.map(s => conta(p, r => segundaDe(diaReg(r)) === s.k))})).sort((a, b) => b.total - a.total);
+    const parte = (n, t) => `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end"><span style="display:inline-block;height:8px;width:${Math.round(n / t * 80)}px;background:#d23c80;border-radius:4px"></span>${Math.round(n / t * 100)}%</div>`;
+    html += `<h3 class="evo-sec">Por pessoa</h3>
+      <table class="evo-tab"><thead><tr><th>Pessoa</th><th>Hoje</th><th>Esta semana</th><th>Parte da semana</th><th>Este mês</th>${ult.map(s => `<th>${esc(s.r)}</th>`).join('')}<th>Total</th><th>Parte do total</th></tr></thead><tbody>
+      ${linhas.map(l => `<tr><td><b>${esc(l.p)}</b></td><td>${l.hoje}</td><td>${l.sem}</td><td>${parte(l.sem, totSem)}</td><td>${l.mes}</td>${l.semanas.map(v => `<td>${v}</td>`).join('')}<td><b>${l.total}</b></td><td>${parte(l.total, tot)}</td></tr>`).join('')}
+      </tbody></table>`;
     box.innerHTML = html;
   }
   (function ligarEvolucao(){
