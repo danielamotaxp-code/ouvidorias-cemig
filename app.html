@@ -435,7 +435,7 @@
 <!-- =============== ABA EVOLUÇÃO =============== -->
 <div id="viewEvolucao" class="reg" hidden>
   <div class="reg-head"><div><h2>Evolução das ouvidorias</h2>
-    <p class="ret-sub">Quantas ouvidorias estamos abrindo por semana e por pessoa. Conta pela data de abertura; atualiza sozinho quando alguém registra.</p></div>
+    <p class="ret-sub">Quantas ouvidorias estamos abrindo por semana. Conta pela data de abertura; atualiza sozinho quando alguém registra.</p></div>
     <div class="chips" id="evoFiltro"><button class="chip on" data-ef="enviada">Enviadas</button><button class="chip" data-ef="">Todas (com não enviadas)</button></div>
   </div>
   <div id="evoCorpo"></div>
@@ -3095,20 +3095,22 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       <div class="evo-card"><small>Total</small><b>${regs.length}</b></div></div>
       <h3 class="evo-sec">Por semana (de segunda a domingo)</h3>${barras(semanas)}
       <table class="evo-tab"><thead><tr><th>Semana</th><th>Ouvidorias</th><th>Evolução</th></tr></thead><tbody>${semanas.slice().reverse().map((s, i, a) => `<tr><td>${esc(s.t)}</td><td>${s.v}</td><td>${a[i + 1] ? variacao(s.v, a[i + 1].v) : ''}</td></tr>`).join('')}</tbody></table>`;
-    // por pessoa: todos veem; quem registrar a primeira ouvidoria entra sozinho. Sem % de crescimento (comparava gente que começou depois);
-    // mostra quanto cada um fez e a parte de cada um no total
-    const nomeDe = r => String(r.responsavel || 'Sem nome').trim() || 'Sem nome';
-    const pessoas = [...new Set(regs.map(nomeDe))];
-    const conta = (p, f) => regs.filter(r => nomeDe(r) === p && f(r)).length;
-    const totSem = regs.filter(r => segundaDe(diaReg(r)) === semAtual).length || 1, totMes = nMes || 1, tot = regs.length || 1;
-    const ult = semanas.slice(-4);
-    const linhas = pessoas.map(p => ({p, hoje: conta(p, r => diaReg(r) === hoje), sem: conta(p, r => segundaDe(diaReg(r)) === semAtual), mes: conta(p, r => diaReg(r).slice(0, 7) === mes),
-      total: conta(p, () => true), semanas: ult.map(s => conta(p, r => segundaDe(diaReg(r)) === s.k))})).sort((a, b) => b.total - a.total);
-    const parte = (n, t) => `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end"><span style="display:inline-block;height:8px;width:${Math.round(n / t * 80)}px;background:#d23c80;border-radius:4px"></span>${Math.round(n / t * 100)}%</div>`;
-    html += `<h3 class="evo-sec">Por pessoa</h3>
-      <table class="evo-tab"><thead><tr><th>Pessoa</th><th>Hoje</th><th>Esta semana</th><th>Parte da semana</th><th>Este mês</th>${ult.map(s => `<th>${esc(s.r)}</th>`).join('')}<th>Total</th><th>Parte do total</th></tr></thead><tbody>
-      ${linhas.map(l => `<tr><td><b>${esc(l.p)}</b></td><td>${l.hoje}</td><td>${l.sem}</td><td>${parte(l.sem, totSem)}</td><td>${l.mes}</td>${l.semanas.map(v => `<td>${v}</td>`).join('')}<td><b>${l.total}</b></td><td>${parte(l.total, tot)}</td></tr>`).join('')}
-      </tbody></table>`;
+    if(ehAdminPlat()){
+      // por pessoa: só a administradora vê (pedido da Daniela, 24/11); quem registrar a primeira ouvidoria entra sozinho. Sem % de crescimento (comparava gente que começou depois);
+      // mostra quanto cada um fez e a parte de cada um no total
+      const nomeDe = r => String(r.responsavel || 'Sem nome').trim() || 'Sem nome';
+      const pessoas = [...new Set(regs.map(nomeDe))];
+      const conta = (p, f) => regs.filter(r => nomeDe(r) === p && f(r)).length;
+      const totSem = regs.filter(r => segundaDe(diaReg(r)) === semAtual).length || 1, totMes = nMes || 1, tot = regs.length || 1;
+      const ult = semanas.slice(-4);
+      const linhas = pessoas.map(p => ({p, hoje: conta(p, r => diaReg(r) === hoje), sem: conta(p, r => segundaDe(diaReg(r)) === semAtual), mes: conta(p, r => diaReg(r).slice(0, 7) === mes),
+        total: conta(p, () => true), semanas: ult.map(s => conta(p, r => segundaDe(diaReg(r)) === s.k))})).sort((a, b) => b.total - a.total);
+      const parte = (n, t) => `<div style="display:flex;align-items:center;gap:6px;justify-content:flex-end"><span style="display:inline-block;height:8px;width:${Math.round(n / t * 80)}px;background:#d23c80;border-radius:4px"></span>${Math.round(n / t * 100)}%</div>`;
+      html += `<h3 class="evo-sec">Por pessoa <small style="font-weight:400;color:var(--soft)">— só a administradora vê</small></h3>
+        <table class="evo-tab"><thead><tr><th>Pessoa</th><th>Hoje</th><th>Esta semana</th><th>Parte da semana</th><th>Este mês</th>${ult.map(s => `<th>${esc(s.r)}</th>`).join('')}<th>Total</th><th>Parte do total</th></tr></thead><tbody>
+        ${linhas.map(l => `<tr><td><b>${esc(l.p)}</b></td><td>${l.hoje}</td><td>${l.sem}</td><td>${parte(l.sem, totSem)}</td><td>${l.mes}</td>${l.semanas.map(v => `<td>${v}</td>`).join('')}<td><b>${l.total}</b></td><td>${parte(l.total, tot)}</td></tr>`).join('')}
+        </tbody></table>`;
+    }
     box.innerHTML = html;
   }
   (function ligarEvolucao(){
