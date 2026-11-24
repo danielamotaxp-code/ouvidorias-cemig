@@ -1,3 +1,49 @@
 /* Dentro do portal único: sem cabeçalho próprio e nas cores da WattWise (rosa) */
 html.plat-embutido .brand, html.plat-embutido #userBox { display: none !important; }
 html.plat-embutido:root { --accent: #d23c80; --accent-soft: #fde3ee; }
+
+/* ===== tema escuro (classe "escuro" vem do portal: Minha conta → Escuro, ou Automático com o computador no escuro) ===== */
+html.escuro:root { color-scheme: dark;
+  --bg: #12161b; --panel: #1a2027; --ink: #e6ebf0; --muted: #b2bdc9; --soft: #8693a1; --line: #2e3843;
+  --accent: #d23c80; --accent-soft: #3a1a2a; --accent-ink: #f08bb8;
+  --warn-soft: #3a2e12; --warn-ink: #ffd27a; --miss: #3a3214; --miss-ink: #ffe08a; --danger: #ff8f86; --danger-soft: #3b1d1b; }
+html.escuro body { background: var(--bg); color: var(--ink); }
+/* superfícies brancas viram o cartão escuro */
+html.escuro .anx-btn, html.escuro .anx-file .anx-btn, html.escuro .chip, html.escuro .copy, html.escuro .evo-card,
+html.escuro .field input, html.escuro .field textarea, html.escuro .field select, html.escuro .login-card, html.escuro .modal,
+html.escuro .resseg button, html.escuro .ret-grid select, html.escuro .ret-grid input, html.escuro .ret-grid textarea,
+html.escuro .search input, html.escuro .seg, html.escuro .seg button, html.escuro .toolbar select, html.escuro .iconbtn:hover,
+html.escuro input, html.escuro textarea, html.escuro select { background: var(--panel); color: var(--ink); border-color: #3a4654; }
+/* fundos levemente acinzentados viram o "afundado" */
+html.escuro .anx, html.escuro .anx-salvos, html.escuro .btn:hover, html.escuro .dados-relato, html.escuro .lrow.head,
+html.escuro .marcadores button, html.escuro .navitem:hover, html.escuro .num, html.escuro .rchip, html.escuro .relato,
+html.escuro .ret-tab th, html.escuro .sol-ajuda, html.escuro .banner.info { background: #222a33; color: var(--ink); border-color: var(--line); }
+html.escuro .num, html.escuro .ret-tab th, html.escuro .lrow.head { color: var(--muted); }
+html.escuro .anx-file { background: #1f2a24; border-color: #2f4a3a; color: var(--ink); }
+html.escuro .chip.on { background: var(--ink); border-color: var(--ink); color: #12161b; }
+html.escuro .seg button.on, html.escuro .navitem.active .num, html.escuro .tag.dark, html.escuro .copy.done { background: var(--accent); color: #fff; }
+/* avisos e situações */
+html.escuro .pendinfo, html.escuro .ret.pend, html.escuro .anx-slot.video.destaque, html.escuro .resseg button.on[data-r=erro],
+html.escuro .stseg button .c.warn, html.escuro .ret-grid label.cf-confira input, html.escuro .ret-grid label.pede input,
+html.escuro .ret-grid label.pede select, html.escuro .ret-grid label.pede textarea, html.escuro .ret-pill.aguardando_cemig { background: #3a2e12; color: #ffd27a; border-color: #6b5320; }
+html.escuro .anx-falha, html.escuro .ret-pill.responder, html.escuro .ret-pill.verificar, html.escuro .ret-pill.nova_ouvidoria { background: #3b1d1b; color: #ff9f97; }
+html.escuro .ret-card.ok, html.escuro .ret-drop.on, html.escuro .ret-grid label.cf-ok input, html.escuro .ret-pill.encerrado { background: #173022; color: #9fe0b8; border-color: #2f6a47; }
+html.escuro .ret-pill.respondido { background: #1a2a40; color: #9fc3f5; }
+html.escuro .btn.danger { border-color: #6b2a25; }
+html.escuro .login { background: var(--bg); }
+html.escuro .toast { background: #e6ebf0; color: #12161b; }
+html.escuro nav::-webkit-scrollbar-thumb { background: #3a4654; }
+/* o print de exemplo continua parecendo um print (claro) */
+html.escuro .sol-exemplo { background: #fff; color: #1c2420; border-color: #3a4654; }
+html.escuro .sol-exemplo * { color: inherit; }
+/* textos com cor fixa escura */
+html.escuro .tut p, html.escuro .resp { color: var(--muted); }
+html.escuro .alert, html.escuro .calc.wait, html.escuro .regwarn, html.escuro .banner.warn, html.escuro .prob, html.escuro .pendinfo button { color: #ffd27a; }
+html.escuro .anx-falha small { color: #e0a39d; }
+html.escuro .rchip { color: var(--ink); }
+html.escuro .banner.info { color: #cfe0f7; background: #1a2a40; }
+html.escuro .evo-barras .b span { color: var(--muted); }
+html.escuro .evo-rot span { color: var(--soft); }
+html.escuro .ret-grid small.cf { color: #7fd09a; }
+html.escuro #s_ns { background: #222a33 !important; }
+html.escuro button.lnk:not(.gstatus button) { background: #2a3440; border: 1px solid #3a4654; color: var(--ink); border-radius: 6px; }
