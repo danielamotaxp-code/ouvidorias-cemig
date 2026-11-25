@@ -10,7 +10,7 @@
 <script src="config.js"></script>
 <script src="solicitadas.js?v=202611220900"></script>
 <script src="retornos.js?v=202611220900"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611251200"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611251240"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -417,7 +417,7 @@
       </div>
       <div class="row3">
         <div class="field" id="fw_resp"><label for="s_resp">Responsável</label><input id="s_resp" placeholder="Quem abriu"></div>
-        <div class="field"><label for="s_mes">Mês</label><select id="s_mes"></select></div>
+        <div class="field"><label for="s_mes">Mês de referência</label><select id="s_mes" title="Mês a que o problema se refere (ex.: a fatura de outubro que o cliente não recebeu)"></select></div>
         <div class="field"><label for="s_data" id="s_data_l">Data de abertura</label><input id="s_data" type="date"></div>
       </div>
       <div class="field" id="blocoRet"><label class="chk"><input type="checkbox" id="s_ret"> Já teve retorno da Cemig</label></div>
@@ -640,7 +640,7 @@
     </div>
     <div class="row3">
       <div class="field"><label for="r_resp">Responsável</label><input id="r_resp"></div>
-      <div class="field"><label for="r_mes">Mês</label><select id="r_mes"></select></div>
+      <div class="field"><label for="r_mes">Mês de referência</label><select id="r_mes"></select></div>
       <div class="field"><label for="r_data">Data de abertura</label><input id="r_data" type="date"></div>
     </div>
     <div class="field"><label for="r_recl">Reclamação</label><select id="r_recl"></select></div>
@@ -1375,10 +1375,21 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   let token = null, col = null, dbStatus = 'loading', registros = [], podeEscrever = true, shaAtual = null, pollTimer = null;
   let grupoAtual = 'cliente', filtroRet = '', destacar = null, statusAtual = 'todos';
 
-  const mesOptions = sel => MESES_CAP.map(m => `<option ${m===sel?'selected':''}>${m}</option>`).join('');
-  $('s_mes').innerHTML = mesOptions(mesAnterior());
+  // Mês de referência: o mês a que o problema se refere (ex.: a fatura de outubro que não veio). Valor "AAAA-MM".
+  const isoMes = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}`;
+  const mesRefAnterior = () => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1); return isoMes(d); };
+  const nomeMesRef = iso => { if(!iso) return ''; const [y, m] = iso.split('-'); return `${MESES_CAP[+m-1]}/${y}`; };
+  // ouvidorias antigas (antes do campo): as Reclamações 6 são de outubro/2026; as outras ficam sem mês até alguém preencher
+  const mesRefDe = r => r.mesRef || (+r.reclamacao === 6 ? '2026-10' : '');
+  const mesRefOptions = sel => {
+    const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 12); const ops = [];
+    for(let i = 0; i < 15; i++){ ops.push(isoMes(d)); d.setMonth(d.getMonth() + 1); }
+    if(sel && !ops.includes(sel)) ops.unshift(sel);
+    return (sel ? '' : '<option value="">— escolha —</option>') + ops.reverse().map(v => `<option value="${v}" ${v===sel?'selected':''}>${nomeMesRef(v)}</option>`).join('');
+  };
+  $('s_mes').innerHTML = mesRefOptions(mesRefAnterior());
   $('s_data').value = isoHoje();
-  $('r_mes').innerHTML = mesOptions(mesAnterior());
+  $('r_mes').innerHTML = mesRefOptions(mesRefAnterior());
   $('fMes').innerHTML += MESES_CAP.map(m => `<option>${m}</option>`).join('');
   $('s_resp').addEventListener('blur', () => { $('s_resp').value = nomeNormal($('s_resp').value); });
   $('s_protocolo').addEventListener('input', limparAviso);
@@ -1824,6 +1835,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     if(!r.nome){ obrig.push(t.contato === 'cliente' ? 'nome do cliente' : 'gerador'); const f = $(t.contato==='cliente' ? 'fw_nomeCliente' : 'fw_nomeUsina'); f && f.classList.add('err'); }
     if(!$('s_protocolo').value.trim()){ obrig.push('nº do protocolo da ouvidoria'); $('fw_prot').classList.add('err'); }
     if(!$('s_resp').value.trim()){ obrig.push('responsável'); $('fw_resp').classList.add('err'); }
+    if(!$('s_mes').value){ obrig.push('mês de referência'); }
     if(obrig.length){
       $('regWarn').innerHTML = `<div class="regwarn">Para registrar, preencha: <b>${esc(obrig.join(', '))}</b>.</div>`;
       return;
@@ -1838,7 +1850,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const resp = nomeNormal($('s_resp').value); store.set('ouv_resp', resp);
     const doc = {
       grupo: grupoDe(t.num),
-      mes: $('s_mes').value, responsavel: resp,
+      mes: MESES_CAP[+$('s_mes').value.split('-')[1]-1] || '', mesRef: $('s_mes').value, responsavel: resp,
       nome: nomeNormal(r.nome), instalacao: r.instalacao, uc: r.uc,
       protocolo: $('s_protocolo').value.trim(), ns: T(v.protocolo),
       dataAbertura: $('s_data').value || isoHoje(),
@@ -1900,7 +1912,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const tent = {data: quando, quem: resp, problema: $('s_prob').value, obs: $('s_pobs').value.trim(), em: new Date().toISOString()};
     const pend = pendenteAtual && registros.find(x => x.id === pendenteAtual);
     const doc = Object.assign({}, pend || {}, {
-      status: 'pendente', grupo: grupoDe(t.num), mes: $('s_mes').value, responsavel: resp,
+      status: 'pendente', grupo: grupoDe(t.num), mes: MESES_CAP[+$('s_mes').value.split('-')[1]-1] || '', mesRef: $('s_mes').value, responsavel: resp,
       nome: nomeNormal(r.nome), instalacao: r.instalacao, uc: r.uc, ns: T(v.protocolo),
       reclamacao: t.num, motivo: motivoPadrao(t), envio: fotoEnvio(),
       primeiraTentativa: (pend && pend.primeiraTentativa) || quando, ultimaTentativa: quando,
@@ -1970,8 +1982,12 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       // todas as listas (abas) que têm esse cliente, da mais nova para a mais antiga
       // período escolhido em cada lista (de / até): a ouvidoria só marca as listas cujo período inclui a data em que foi registrada
       const diaReg = String(r.criadoEm || isoHoje()).slice(0, 10);
+      // a ouvidoria só pinta as listas da planilha do mesmo mês de referência
+      const ref = mesRefDe(r);
       const noPeriodo = l => {
-        const m = mesDe(l), de = l.desde || (m && m.desde) || '', at = l.ate || (m && m.ate) || '';
+        const m = mesDe(l), ms = (m && m.meses) || [];
+        if(ms.length) return ms.includes(ref);
+        const de = l.desde || (m && m.desde) || '', at = l.ate || (m && m.ate) || '';
         return (!de && !at) ? menos3(l.dataISO) <= hoje : ((!de || diaReg >= de) && (!at || diaReg <= at));
       };
       const listas = (d.listas || []).filter(l => l.aba && noPeriodo(l)).sort((a, b) => String(b.dataISO).localeCompare(String(a.dataISO)));
@@ -2154,7 +2170,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const ICON_DADOS = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="3" width="8" height="4" rx="1"/><path d="M8 5H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M8 12h8M8 16h5"/></svg>';
     const linhaPend = r => { const u = (r.tentativas||[]).slice(-1)[0] || {}; return `
       <div class="lrow ${r.id===destacar?'flash':''}" data-id="${esc(r.id)}">
-        <div class="c-date date">${esc(fmtData(r.ultimaTentativa))}<small>${esc(r.mes||'')}</small></div>
+        <div class="c-date date">${esc(fmtData(r.ultimaTentativa))}<small>${esc(mesRefDe(r) ? 'Ref. ' + nomeMesRef(mesRefDe(r)) : (r.mes||''))}</small></div>
         <div class="c-recl"><span class="rchip" title="${esc(r.motivo||'')}">Recl. ${esc(r.reclamacao)}</span></div>
         <div class="c-who"><div class="who">${esc(r.nome) || '<span style="color:var(--soft)">Sem nome</span>'}</div>
           <div class="sub2">${[r.instalacao ? 'Inst. '+esc(r.instalacao) : '', r.uc ? 'UC '+esc(r.uc) : ''].filter(Boolean).join(' · ')}</div></div>
@@ -2166,7 +2182,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
 
     let corpo = lista.map(r => statusReg(r) === 'pendente' ? linhaPend(r) : `
       <div class="lrow ${r.id===destacar?'flash':''}" data-id="${esc(r.id)}">
-        <div class="c-date date">${esc(fmtData(r.dataAbertura))}<small>${esc(r.mes||'')}</small></div>
+        <div class="c-date date">${esc(fmtData(r.dataAbertura))}<small>${esc(mesRefDe(r) ? 'Ref. ' + nomeMesRef(mesRefDe(r)) : (r.mes||''))}</small></div>
         <div class="c-recl"><span class="rchip" title="${esc(r.motivo||'')}">Recl. ${esc(r.reclamacao)}</span></div>
         <div class="c-who"><div class="who">${esc(r.nome) || '<span style="color:var(--soft)">Sem nome</span>'}</div>
           <div class="sub2">${[r.instalacao ? 'Inst. '+esc(r.instalacao) : '', r.uc ? 'UC '+esc(r.uc) : ''].filter(Boolean).join(' · ')}</div>
@@ -2212,7 +2228,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('r_nome_l').textContent = ger ? 'Gerador' : 'Nome do cliente';
     const tiposGrupo = TIPOS.filter(t => grupoDe(t.num) === grupoReg(r));
     $('r_recl').innerHTML = tiposGrupo.map(t => `<option value="${t.num}">Reclamação ${t.num} — ${esc(t.motivoReg)}</option>`).join('');
-    $('r_mes').value = r.mes || mesAnterior();
+    $('r_mes').innerHTML = mesRefOptions(mesRefDe(r));
     $('r_data').value = r.dataAbertura || '';
     $('r_resp').value = r.responsavel || '';
     $('r_nome').value = r.nome || '';
@@ -2237,7 +2253,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const num = +$('r_recl').value;
     const doc = Object.assign({}, prev, {
       grupo: grupoDe(num),
-      mes: $('r_mes').value, responsavel: nomeNormal($('r_resp').value),
+      mes: MESES_CAP[+String($('r_mes').value).split('-')[1]-1] || prev.mes || '', mesRef: $('r_mes').value || prev.mesRef || '', responsavel: nomeNormal($('r_resp').value),
       nome: nomeNormal($('r_nome').value), instalacao: $('r_inst').value.trim(), uc: $('r_uc').value.trim(),
       protocolo: $('r_prot').value.trim(), ns: $('r_ns').value.trim(),
       dataAbertura: $('r_data').value, reclamacao: num,
@@ -2319,13 +2335,13 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     return zip(files);
   }
   function montarAbas(){
-    const linha = r => [r.mes||'', r.responsavel||'', r.nome||'', r.instalacao||'', r.uc||'', r.protocolo||'', r.ns||'', fmtData(r.dataAbertura), r.motivo||'', !!r.retorno, r.obs||''];
+    const linha = r => [mesRefDe(r) ? nomeMesRef(mesRefDe(r)) : (r.mes||''), r.responsavel||'', r.nome||'', r.instalacao||'', r.uc||'', r.protocolo||'', r.ns||'', fmtData(r.dataAbertura), r.motivo||'', !!r.retorno, r.obs||''];
     const asc = (a,b) => -ordena(a,b);
     const larg = [12,16,38,14,22,14,16,14,44,10,30];
     const env = enviados();
     const pend = registros.filter(r => statusReg(r) === 'pendente').sort((a,b) => (a.primeiraTentativa||'').localeCompare(b.primeiraTentativa||''));
     const linhaPend = r => { const u = (r.tentativas||[]).slice(-1)[0] || {};
-      return [grupoReg(r) === 'gerador' ? 'Gerador' : 'Cliente', r.mes||'', u.quem || r.responsavel || '', r.nome||'', r.instalacao||'', r.uc||'', r.motivo||'', fmtData(r.primeiraTentativa), fmtData(r.ultimaTentativa), [u.problema, u.obs].filter(Boolean).join(' — '), (r.tentativas||[]).length]; };
+      return [grupoReg(r) === 'gerador' ? 'Gerador' : 'Cliente', mesRefDe(r) ? nomeMesRef(mesRefDe(r)) : (r.mes||''), u.quem || r.responsavel || '', r.nome||'', r.instalacao||'', r.uc||'', r.motivo||'', fmtData(r.primeiraTentativa), fmtData(r.ultimaTentativa), [u.problema, u.obs].filter(Boolean).join(' — '), (r.tentativas||[]).length]; };
     return [
       {nome:'Cliente', cols:10, caixa:9, titulo:'CONTROLER PROTOCOLOS OUVIDORIAS', cab:['Mês','Responsável','Nome Cliente','Instalação','UC','Nº Protocolo','Nota de Serviço','Data Abertura','Motivo','Retorno','Observações'],
         linhas: env.filter(r=>grupoReg(r)==='cliente').sort(asc).map(linha), larguras:larg},
@@ -2450,6 +2466,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const t = tipoPorNum(p.reclamacao || 6); if(!t) return;
     atual = t.id; store.set('ouv_tipo', atual);
     valores[atual] = Object.assign({pessoa: 'PF'}, p.valores); checks[atual] = new Set(); salvarLocal();
+    if(p.mesRef){ $('s_mes').innerHTML = mesRefOptions(p.mesRef); }
     pendenteAtual = null; store.set('ouv_pend', null); resultado = 'ok'; anxPend = {};
     irPara('gerar'); renderGerador(); try{ desenharResultado(); }catch(e){}
     toast(`Dados de ${p.valores.nomeCliente || p.valores.nomeUsina || 'cliente'} carregados (${p.lista || ''}). Complete o endereço e confira.`);
@@ -2903,7 +2920,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   }
   // ---- formulário de pedido (um pedido por vez) ----
   const USINA_CAMPOS = ['usinaNome', 'usinaInst', 'usinaUc'], CLI_CAMPOS = ['nome', 'instalacao', 'uc', 'doc'];
-  const novoPedido = () => ({tipo: '', motivo: '', dados: {}, conf: {}, editado: {}, retorno: [], estado: {}});
+  const novoPedido = () => ({tipo: '', mesRef: '', motivo: '', dados: {}, conf: {}, editado: {}, retorno: [], estado: {}});
   let solAtual = novoPedido();
   const ehUsina = n => +n >= 1 && +n <= 4;
   // campos que aparecem para a reclamação: os que ela pede + o nome de quem é + outros/observação
@@ -2940,6 +2957,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const precisaUsina = n && camposDoTipo(n).some(k => USINA_CAMPOS.includes(k)), precisaCli = n && camposDoTipo(n).some(k => CLI_CAMPOS.includes(k));
     box.innerHTML = `<div class="ret-grid">
       <label class="full pede">Tipo de reclamação * <select data-sk="tipo"><option value="">— escolha —</option>${Object.keys(SOL.TIPOS).map(k => `<option value="${k}" ${n === +k ? 'selected' : ''}>${esc(SOL.TIPOS[k])}</option>`).join('')}</select></label>
+      <label class="pede">Mês de referência * <select data-sk="mesRef">${mesRefOptions(x.mesRef || '')}</select></label>
       <label class="full">Motivo <small>(opcional)</small> <input data-sk="motivo" value="${esc(x.motivo)}" placeholder="Só se quiser explicar algo a mais"></label>
       ${n ? `
         ${precisaCli ? printBox('cliente', 'Print do cliente', x.file) : ''}
@@ -2952,7 +2970,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     </div>`;
     box.querySelectorAll('[data-sk]').forEach(el => el.onchange = el.oninput = () => {
       const k = el.dataset.sk;
-      if(k === 'tipo' || k === 'motivo') x[k] = el.value; else { x.dados[k] = el.value; x.editado[k] = true; }
+      if(k === 'tipo' || k === 'motivo' || k === 'mesRef') x[k] = el.value; else { x.dados[k] = el.value; x.editado[k] = true; }
       if(k === 'tipo' && el.type !== 'text') desenharSolForm();
     });
     box.querySelectorAll('[data-sprint-in]').forEach(el => el.onchange = () => { if(el.files[0]) lerPrintPara(el.dataset.sprintIn, el.files[0]); });
@@ -2961,6 +2979,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   async function salvarSolicitacoes(){
     const x = solAtual, n = +x.tipo, ROT = Object.fromEntries(SOL_CAMPOS), msg = t => { $('solMsgSalvar').textContent = t; };
     if(!n) return msg('Escolha o tipo de reclamação.');
+    if(!x.mesRef) return msg('Escolha o mês de referência (o mês a que o problema se refere).');
     const faltam = obrigatorios(n).filter(k => !String(x.dados[k] || '').trim());
     if(faltam.length && !x.file && !x.usinaPrint) return msg('Anexe o print da tela ou preencha: ' + faltam.map(k => ROT[k] || k).join(', ') + '.');
     if((SOL.RETORNO || {})[n] && !x.retorno.length) return msg(`Na reclamação ${n}, anexe o retorno da Cemig.`);
@@ -2975,7 +2994,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       // problema na leitura do print: campo que não fechou e ninguém corrigiu à mão
       const duvida = (x.lidoFalhou ? ['print não lido'] : []).concat(faltam.length ? ['faltou ler: ' + faltam.map(k => ROT[k] || k).join(', ')] : []).concat(Object.keys(x.conf).filter(k => x.conf[k] === 'confira' && !x.editado[k] && d[k]).map(k => ROT[k] || k));
       if(duvida.length) d.obs = [d.obs, '⚠ Conferir no print: ' + duvida.join(', ')].filter(Boolean).join(' · ');
-      const nova = {id, criadoEm: new Date().toISOString(), por: quem(), tipo: n, motivo: String(x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida};
+      d.obs = ['Mês de referência: ' + nomeMesRef(x.mesRef), d.obs].filter(Boolean).join(' · ');
+      const nova = {id, criadoEm: new Date().toISOString(), por: quem(), tipo: n, mesRef: x.mesRef, motivo: String(x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida};
       const dd = await alterarArqJson(ARQ_SOL, o => Object.assign({}, o, {solicitacoes: (o.solicitacoes || []).concat([nova])}), `Ouvidoria solicitada: reclamação ${n} (${quem()})`);
       solicitacoes = dd.solicitacoes; solAtual = novoPedido(); desenharSolForm();
       msg('Ouvidoria solicitada ✓');
@@ -3008,7 +3028,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('solLista').querySelectorAll('[data-sprint]').forEach(b => b.onclick = () => baixarArquivo({caminho: b.dataset.sprint, nome: b.dataset.sprint.split('/').pop()}, true));
     $('solLista').querySelectorAll('[data-sabrir]').forEach(b => b.onclick = () => {
       const s = solicitacoes.find(z => z.id === b.dataset.sabrir); if(!s) return;
-      try{ localStorage.setItem('ouv_prefill', JSON.stringify({reclamacao: s.tipo, valores: SOL.valoresGerar(s), lista: 'solicitação de ' + (s.por || ''), em: Date.now()})); }catch(e){}
+      try{ localStorage.setItem('ouv_prefill', JSON.stringify({reclamacao: s.tipo, mesRef: s.mesRef || '', valores: SOL.valoresGerar(s), lista: 'solicitação de ' + (s.por || ''), em: Date.now()})); }catch(e){}
       aplicarPrefill();
       if((s.retorno || []).length) levarRetorno(s.retorno);
     });
