@@ -441,6 +441,7 @@
   <div id="evoCorpo"></div>
 </div>
 
+<div id="solNotif" hidden style="position:fixed;right:16px;bottom:16px;z-index:60;max-width:380px;background:#fff;border:2px solid #d9822b;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:12px 14px;font-size:.95rem"></div>
 <!-- =============== ABA OUVIDORIAS SOLICITADAS =============== -->
 <div id="viewSolicitadas" class="reg" hidden>
   <div class="reg-head"><div><h2>Ouvidorias solicitadas</h2>
@@ -448,6 +449,7 @@
     <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" id="solAbrirPlan" target="_blank" rel="noopener">Abrir planilha</a><a class="btn" id="solExcel" rel="noopener">Baixar em Excel</a><button class="btn" id="solSinc" type="button">Atualizar planilha</button></div>
   </div>
   <div id="solG" class="gstatus"></div>
+  <div id="solFaltam"></div>
   <h3 class="ret-h3">Solicitar ouvidoria</h3>
   <div class="sol-ajuda">
     <b>Como solicitar</b>
@@ -1533,7 +1535,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
 
   function iniciarPolling(){
     clearInterval(pollTimer);
-    pollTimer = setInterval(() => { if(document.visibilityState === 'visible') atualizarLista(true); }, 60000);
+    pollTimer = setInterval(() => { if(document.visibilityState === 'visible'){ Promise.resolve(atualizarLista(true)).then(lerSolicitacoes); } }, 60000);
+    lerSolicitacoes();
   }
   document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible' && token) atualizarLista(true); });
 
@@ -1880,6 +1883,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     if(!avisarFalhas(ref.id, falhouAnx)) toast(doc.tentativas && doc.tentativas.length ? 'Ouvidoria enviada ✓ Saiu de Não enviadas' : 'Ouvidoria registrada ✓');
     agendarGoogle(); desenharResultado();
     atualizarListaFaturas(Object.assign({id: ref.id}, doc));
+    try{ avisarSolicitadas(); }catch(e){}
   };
 
   // devolve quantos arquivos NÃO subiram (eles ficam no 📋 do cadastro para tentar de novo)
@@ -1933,6 +1937,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     if(!avisarFalhas(ref.id, falhouAnx)) toast('Salva em Não enviadas. Outra pessoa pode tentar de novo.');
     agendarGoogle();
     atualizarListaFaturas(Object.assign({id: ref.id}, doc));
+    try{ avisarSolicitadas(); }catch(e){}
   }
 
   // ---------- planilha de ouvidorias das faturas (Faturas e Contratos → aba Ouvidorias) ----------
@@ -2886,7 +2891,32 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   const SOL_CAMPOS = [['nome', 'Nome do cliente'], ['instalacao', 'Instalação do cliente'], ['uc', 'UC do cliente'], ['doc', 'CPF/CNPJ do cliente'],
     ['usinaNome', 'Nome da usina'], ['usinaInst', 'Instalação da usina'], ['usinaUc', 'UC da usina'], ['outros', 'Outros dados desta reclamação'], ['obs', 'Observação']];
   let solFila = [], solicitacoes = [], solFiltro = 'abrir';
-  async function lerSolicitacoes(){ try{ solicitacoes = ((await lerArqJson(ARQ_SOL)).dados.solicitacoes) || []; }catch(e){} }
+  async function lerSolicitacoes(){ try{ solicitacoes = ((await lerArqJson(ARQ_SOL)).dados.solicitacoes) || []; }catch(e){} try{ avisarSolicitadas(); }catch(e){} }
+  // pedidos que ainda não têm ouvidoria (do mesmo mês de referência): contador na aba, faixa e aviso quando chega um novo
+  function faltamAbrir(){ return solicitacoes.filter(s => !ouvidoriaDa(s)); }
+  function descreverPedido(s){ const d = s.dados || {}; return `Reclamação ${s.tipo} – ${d.nome || d.usinaNome || d.instalacao || d.usinaInst || 'cliente'}${s.mesRef ? ' (' + nomeMesRef(s.mesRef) + ')' : ''}`; }
+  function avisarSolicitadas(){
+    if(!token) return;
+    const falta = faltamAbrir(), n = falta.length;
+    const tab = document.querySelector('.tab[data-view="solicitadas"]');
+    if(tab) tab.innerHTML = 'Ouvidorias solicitadas' + (n ? ` <span style="background:#d9822b;color:#fff;border-radius:10px;padding:0 7px;font-size:.8em;margin-left:4px">${n}</span>` : '');
+    const box = $('solFaltam');
+    if(box) box.innerHTML = n ? `<div class="regwarn" style="margin:10px 0">🔔 <b>Temos que abrir ${n} ouvidoria${n > 1 ? 's' : ''}.</b> Pedidos que ainda não têm ouvidoria do mês de referência pedido. Veja em <b>Solicitações → A abrir</b>, abaixo.</div>` : '';
+    // novos: pedidos sem ouvidoria que esta pessoa ainda não viu
+    let vistos = store.get('ouv_sol_vistos', null);
+    if(!vistos){ store.set('ouv_sol_vistos', solicitacoes.map(s => s.id)); return; } // primeira vez: não avisa dos antigos
+    const novos = falta.filter(s => !vistos.includes(s.id) && s.por !== quem());
+    store.set('ouv_sol_vistos', solicitacoes.map(s => s.id));
+    if(!novos.length) return;
+    const nt = $('solNotif');
+    nt.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px"><b>🔔 ${novos.length > 1 ? novos.length + ' ouvidorias novas solicitadas' : 'Ouvidoria nova solicitada'}</b><button type="button" class="btn" data-x style="padding:0 8px">×</button></div>
+      <div style="margin:6px 0">${novos.slice(0, 4).map(s => esc(descreverPedido(s)) + (s.por ? ` <small>· pedida por ${esc(s.por)}</small>` : '')).join('<br>')}${novos.length > 4 ? '<br>…' : ''}</div>
+      <div>Temos que abrir <b>${n}</b> ouvidoria${n > 1 ? 's' : ''}. <button type="button" class="btn primary" data-ver style="margin-left:6px">Ver</button></div>`;
+    nt.hidden = false;
+    nt.querySelector('[data-x]').onclick = () => { nt.hidden = true; };
+    nt.querySelector('[data-ver]').onclick = () => { nt.hidden = true; solFiltro = 'abrir'; try{ $('solFiltro').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.sf === 'abrir')); }catch(e){} irPara('solicitadas'); };
+    try{ if(window.Notification && Notification.permission === 'granted') new Notification('Ouvidoria nova solicitada', {body: novos.map(descreverPedido).join('\n')}); }catch(e){}
+  }
   // base de clientes da empresa (faturas + contratos): confirma a instalação lida e traz o CPF/CNPJ
   let baseClientes = null;
   async function lerBaseClientes(){
