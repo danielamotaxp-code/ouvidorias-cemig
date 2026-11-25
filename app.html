@@ -3237,6 +3237,17 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const b = $('gGeral'); if(!b) return;
     const g = G(); if(!g){ b.hidden = true; return; }
     const on = !!(g.conectado && g.conectado());
+    // ao abrir a página sem Google (em Ouvidorias solicitadas, Gerar ouvidoria ou Planilhas): já leva para a página de conectar.
+    // Só logo depois de abrir (não interrompe quem está preenchendo quando a hora do Google acaba) e no máximo 1 vez a cada 10 minutos (se a pessoa cancelar, fica só a faixa).
+    if(token && !desenharGGeral.entrouEm) desenharGGeral.entrouEm = Date.now();
+    if(!on && token && Date.now() - desenharGGeral.entrouEm < 30000 && ['viewSolicitadas', 'viewGerar', 'viewPlanilhas'].some(id => $(id) && !$(id).hidden)){
+      let ult = 0; try{ ult = +sessionStorage.getItem('ouv_g_auto') || 0; }catch(e){}
+      if(Date.now() - ult > 10 * 60 * 1000){
+        try{ sessionStorage.setItem('ouv_g_auto', String(Date.now())); }catch(e){}
+        toast('Conectando o Google…');
+        setTimeout(() => { const g2 = G(); if(!(g2 && g2.conectado && g2.conectado())) b.click(); }, 1200);
+      }
+    }
     // aviso grande enquanto o Google não estiver conectado: sem ele, nada vai para as planilhas
     const av = $('gAviso');
     if(av && av.dataset.on !== String(on)){
