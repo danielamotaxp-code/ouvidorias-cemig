@@ -10,7 +10,7 @@
 <script src="config.js"></script>
 <script src="solicitadas.js?v=202611220900"></script>
 <script src="retornos.js?v=202611220900"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611220900"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611251200"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -1964,7 +1964,10 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       const hoje = isoHoje();
       const menos3 = iso => { const x = new Date(iso + 'T12:00:00'); x.setDate(x.getDate() - 3); return x.toISOString().slice(0, 10); };
       // todas as listas (abas) que têm esse cliente, da mais nova para a mais antiga
-      const listas = (d.listas || []).filter(l => l.aba && menos3(l.dataISO) <= hoje).sort((a, b) => String(b.dataISO).localeCompare(String(a.dataISO)));
+      // período escolhido em cada lista (de / até): a ouvidoria só marca as listas cujo período inclui a data em que foi registrada
+      const diaReg = String(r.criadoEm || isoHoje()).slice(0, 10);
+      const noPeriodo = l => (!l.desde && !l.ate) ? menos3(l.dataISO) <= hoje : ((!l.desde || diaReg >= l.desde) && (!l.ate || diaReg <= l.ate));
+      const listas = (d.listas || []).filter(l => l.aba && noPeriodo(l)).sort((a, b) => String(b.dataISO).localeCompare(String(a.dataISO)));
       const g = G(), abas = [];
       for(const l of listas){
         const m = await g.ler(pid, `'${l.aba.replace(/'/g, "''")}'`);
