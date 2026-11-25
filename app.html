@@ -1960,16 +1960,24 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   async function atualizarAbaR6(r, d){
     try{
       const k = String(r.instalacao || '').replace(/\D/g, '').replace(/^0+/, ''); if(!k) return;
-      const pid = (String(d.planilha || '').match(/\/d\/([\w-]+)/) || [])[1]; if(!pid) return;
+      const idDe = lk => (String(lk || '').match(/\/d\/([\w-]+)/) || [])[1] || '';
+      const pidPadrao = idDe(d.planilha) || '1T55s2hcu4n0_O50vk5ZKbidlbMpnwzs00btX-IMLQQ4';
+      // uma planilha por mês (mesesR6): cada lista fica na planilha do seu mês e usa o período dela
+      const meses = d.mesesR6 || [];
+      const mesDe = l => meses.find(m => m.id === l.mes) || meses.find(m => l.planilhaId && idDe(m.link) === l.planilhaId) || meses[0] || null;
       const hoje = isoHoje();
       const menos3 = iso => { const x = new Date(iso + 'T12:00:00'); x.setDate(x.getDate() - 3); return x.toISOString().slice(0, 10); };
       // todas as listas (abas) que têm esse cliente, da mais nova para a mais antiga
       // período escolhido em cada lista (de / até): a ouvidoria só marca as listas cujo período inclui a data em que foi registrada
       const diaReg = String(r.criadoEm || isoHoje()).slice(0, 10);
-      const noPeriodo = l => (!l.desde && !l.ate) ? menos3(l.dataISO) <= hoje : ((!l.desde || diaReg >= l.desde) && (!l.ate || diaReg <= l.ate));
+      const noPeriodo = l => {
+        const m = mesDe(l), de = l.desde || (m && m.desde) || '', at = l.ate || (m && m.ate) || '';
+        return (!de && !at) ? menos3(l.dataISO) <= hoje : ((!de || diaReg >= de) && (!at || diaReg <= at));
+      };
       const listas = (d.listas || []).filter(l => l.aba && noPeriodo(l)).sort((a, b) => String(b.dataISO).localeCompare(String(a.dataISO)));
       const g = G(), abas = [];
       for(const l of listas){
+        const pid = l.planilhaId || idDe(mesDe(l) && mesDe(l).link) || pidPadrao;
         const m = await g.ler(pid, `'${l.aba.replace(/'/g, "''")}'`);
         const norm = x => String(x || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
         const hl = m.findIndex(row => (row || []).some(h => norm(h) === 'instalacao')); if(hl < 0) continue;
