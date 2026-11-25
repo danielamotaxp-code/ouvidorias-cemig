@@ -10,7 +10,7 @@
 <script src="config.js"></script>
 <script src="solicitadas.js?v=202611220900"></script>
 <script src="retornos.js?v=202611220900"></script>
-<script src="/central-atendimento/kit/acompanhamento.js?v=202611251250"></script>
+<script src="/central-atendimento/kit/acompanhamento.js?v=202611251305"></script>
 <style>
   :root{
     --bg:#f5f6f3; --panel:#ffffff; --ink:#1c2420; --muted:#5f6b65; --soft:#8a958f; --line:#e2e6e1;
@@ -2994,7 +2994,6 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
       // problema na leitura do print: campo que não fechou e ninguém corrigiu à mão
       const duvida = (x.lidoFalhou ? ['print não lido'] : []).concat(faltam.length ? ['faltou ler: ' + faltam.map(k => ROT[k] || k).join(', ')] : []).concat(Object.keys(x.conf).filter(k => x.conf[k] === 'confira' && !x.editado[k] && d[k]).map(k => ROT[k] || k));
       if(duvida.length) d.obs = [d.obs, '⚠ Conferir no print: ' + duvida.join(', ')].filter(Boolean).join(' · ');
-      d.obs = ['Mês de referência: ' + nomeMesRef(x.mesRef), d.obs].filter(Boolean).join(' · ');
       const nova = {id, criadoEm: new Date().toISOString(), por: quem(), tipo: n, mesRef: x.mesRef, motivo: String(x.motivo || '').trim(), dados: d, print: caminho, printUsina, retorno, leituraDuvida: duvida};
       const dd = await alterarArqJson(ARQ_SOL, o => Object.assign({}, o, {solicitacoes: (o.solicitacoes || []).concat([nova])}), `Ouvidoria solicitada: reclamação ${n} (${quem()})`);
       solicitacoes = dd.solicitacoes; solAtual = novoPedido(); desenharSolForm();
@@ -3006,7 +3005,8 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   // a ouvidoria que atendeu a solicitação (mesma reclamação, mesma instalação, registrada depois do pedido)
   function ouvidoriaDa(s){
     const insts = [s.dados.instalacao, s.dados.usinaInst].map(v => String(v || '').replace(/\D/g, '')).filter(v => v.length >= 6);
-    return registros.filter(r => +r.reclamacao === +s.tipo && insts.includes(String(r.instalacao || '').replace(/\D/g, '')) && String(r.criadoEm || '') >= String(s.criadoEm || '').slice(0, 10))
+    // com mês de referência no pedido: a ouvidoria do mesmo mês, de qualquer data; pedidos antigos: registrada depois do pedido
+    return registros.filter(r => +r.reclamacao === +s.tipo && insts.includes(String(r.instalacao || '').replace(/\D/g, '')) && (s.mesRef ? mesRefDe(r) === s.mesRef : String(r.criadoEm || '') >= String(s.criadoEm || '').slice(0, 10)))
       .sort((a, b) => String(b.criadoEm || '').localeCompare(String(a.criadoEm || '')))[0] || null;
   }
   function renderSolicitadas(){
@@ -3051,7 +3051,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const pid = (linkSolicitadas().match(/\/d\/([\w-]{20,})/) || [])[1]; if(!pid) return;
     try{
       const meta = await g.planilha(pid), folha = meta.sheets[0], sid = folha.properties.sheetId, nome = `'${folha.properties.title.replace(/'/g, "''")}'`;
-      const m = await g.ler(pid, nome + '!A1:U');
+      const m = await g.ler(pid, nome + '!A1:V');
       const linhaDe = {}; m.forEach((l, i) => { if(i > 0 && l[20]) linhaDe[l[20]] = i; });
       // linha livre: a primeira sem tipo de reclamação (as linhas já vêm formatadas)
       let prox = 1; const livre = () => { while(m[prox] && (m[prox][2] || m[prox][20])) prox++; return prox++; };
@@ -3063,6 +3063,19 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 4, endColumnIndex: 16}, rows: [{values: [d.nome, d.instalacao, d.uc, d.doc, d.usinaNome, d.usinaInst, d.usinaUc, d.protocolo || '', '', d.outros, s.motivo || String(SOL.TIPOS[s.tipo] || '').replace(/^Reclamação \d+ – /, ''), d.obs].map(txt)}], fields: 'userEnteredValue'}});
         if((s.leituraDuvida || []).length) ped.push({repeatCell: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 15, endColumnIndex: 16}, cell: {userEnteredFormat: {backgroundColor: {red: 1, green: 0.85, blue: 0.6}}}, fields: 'userEnteredFormat.backgroundColor'}});
         ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: 20, endColumnIndex: 21}, rows: [{values: [txt(s.id)]}], fields: 'userEnteredValue'}});
+      });
+      // coluna V: mês de referência de cada pedido (é por ele que o pedido fica verde)
+      const COLV = 21;
+      if(String((m[0] || [])[COLV] || '') !== 'Mês de referência'){
+        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: COLV, endColumnIndex: COLV + 1}, rows: [{values: [txt('Mês de referência')]}], fields: 'userEnteredValue'}});
+        ped.push({copyPaste: {source: {sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3}, destination: {sheetId: sid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: COLV, endColumnIndex: COLV + 1}, pasteType: 'PASTE_FORMAT'}});
+      }
+      const linhaNova = {}; solicitacoes.forEach(s => { if(linhaDe[s.id] == null) return; linhaNova[s.id] = linhaDe[s.id]; });
+      ped.forEach(p => { const u = p.updateCells; if(u && u.range.startColumnIndex === 20){ const v = u.rows[0].values[0].userEnteredValue.stringValue; linhaNova[v] = u.range.startRowIndex; } });
+      solicitacoes.forEach(s => {
+        const lin = linhaNova[s.id], v = s.mesRef ? nomeMesRef(s.mesRef) : '';
+        if(lin == null || !v || String((m[lin] || [])[COLV] || '') === v) return;
+        ped.push({updateCells: {range: {sheetId: sid, startRowIndex: lin, endRowIndex: lin + 1, startColumnIndex: COLV, endColumnIndex: COLV + 1}, rows: [{values: [txt(v)]}], fields: 'userEnteredValue'}});
       });
       if(ped.length) await g.lote(pid, ped);
       if(window.Acompanhamento) await window.Acompanhamento.sincronizar({google: g, planilhas: [{nome: 'Ouvidorias Solicitadas', link: linkSolicitadas(), colorir: true, reclamacoes: [], desde: '2026-10-01'}], registros});
