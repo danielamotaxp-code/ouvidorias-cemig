@@ -362,6 +362,7 @@
     <button class="tab" data-view="retornos" role="tab">Retorno das ouvidorias</button>
     <button class="tab" data-view="evolucao" role="tab">Evolução</button>
   </div>
+  <div id="gAviso" hidden style="display:none;flex-wrap:wrap;align-items:center;gap:10px;margin:8px 0 2px;padding:10px 14px;border-radius:10px;background:#fef3c7;color:#78350f;border:2px solid #f59e0b;font-size:.95rem"></div>
 </header>
 
 <!-- =============== ABA GERAR =============== -->
@@ -441,7 +442,7 @@
   <div id="evoCorpo"></div>
 </div>
 
-<div id="solNotif" hidden style="position:fixed;right:16px;bottom:16px;z-index:60;max-width:380px;background:#fff;border:2px solid #d9822b;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);padding:12px 14px;font-size:.95rem"></div>
+<div id="solNotif" hidden style="position:fixed;right:16px;bottom:16px;z-index:60;max-width:390px;background:#fff7ed;color:#1f2937;border:2px solid #ea580c;border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.35);padding:12px 14px;font-size:.95rem"></div>
 <!-- =============== ABA OUVIDORIAS SOLICITADAS =============== -->
 <div id="viewSolicitadas" class="reg" hidden>
   <div class="reg-head"><div><h2>Ouvidorias solicitadas</h2>
@@ -1829,8 +1830,15 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     $('btnRegistrar').textContent = textoBotao();
     document.querySelectorAll('.field.err').forEach(f => f.classList.remove('err'));
   }
+  let semGoogleOk = false;
+  const googleOn = () => { const g = G(); return !!(g && g.conectado && g.conectado()); };
   $('btnRegistrar').onclick = async () => {
     if(!col){ toast('O registro ainda não está disponível.'); return; }
+    if(!googleOn() && !semGoogleOk){
+      semGoogleOk = true;
+      $('regWarn').innerHTML = '<div class="regwarn" style="background:#fef3c7;color:#78350f;border-color:#f59e0b"><b>⚠ O Google não está conectado.</b> A ouvidoria fica registrada na plataforma, mas não vai para as planilhas. Clique em <b>Conectar Google</b> no topo e depois registre. Para registrar mesmo assim, clique de novo.</div>';
+      return;
+    }
     const t = tipo(), v = vals(), r = t.reg(v);
     if(resultado === 'erro') return salvarNaoEnviada(t, v, r);
     // obrigatórios do registro
@@ -2901,7 +2909,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const tab = document.querySelector('.tab[data-view="solicitadas"]');
     if(tab) tab.innerHTML = 'Ouvidorias solicitadas' + (n ? ` <span style="background:#d9822b;color:#fff;border-radius:10px;padding:0 7px;font-size:.8em;margin-left:4px">${n}</span>` : '');
     const box = $('solFaltam');
-    if(box) box.innerHTML = n ? `<div class="regwarn" style="margin:10px 0">🔔 <b>Temos que abrir ${n} ouvidoria${n > 1 ? 's' : ''}.</b> Pedidos que ainda não têm ouvidoria do mês de referência pedido. Veja em <b>Solicitações → A abrir</b>, abaixo.</div>` : '';
+    if(box) box.innerHTML = n ? `<div class="regwarn" style="margin:10px 0;background:#fff7ed;color:#7c2d12;border:2px solid #ea580c">🔔 <b>Temos que abrir ${n} ouvidoria${n > 1 ? 's' : ''}.</b> Pedidos que ainda não têm ouvidoria do mês de referência pedido. Veja em <b>Solicitações → A abrir</b>, abaixo.</div>` : '';
     // novos: pedidos sem ouvidoria que esta pessoa ainda não viu
     let vistos = store.get('ouv_sol_vistos', null);
     if(!vistos){ store.set('ouv_sol_vistos', solicitacoes.map(s => s.id)); return; } // primeira vez: não avisa dos antigos
@@ -2909,9 +2917,9 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     store.set('ouv_sol_vistos', solicitacoes.map(s => s.id));
     if(!novos.length) return;
     const nt = $('solNotif');
-    nt.innerHTML = `<div style="display:flex;justify-content:space-between;gap:8px"><b>🔔 ${novos.length > 1 ? novos.length + ' ouvidorias novas solicitadas' : 'Ouvidoria nova solicitada'}</b><button type="button" class="btn" data-x style="padding:0 8px">×</button></div>
-      <div style="margin:6px 0">${novos.slice(0, 4).map(s => esc(descreverPedido(s)) + (s.por ? ` <small>· pedida por ${esc(s.por)}</small>` : '')).join('<br>')}${novos.length > 4 ? '<br>…' : ''}</div>
-      <div>Temos que abrir <b>${n}</b> ouvidoria${n > 1 ? 's' : ''}. <button type="button" class="btn primary" data-ver style="margin-left:6px">Ver</button></div>`;
+    nt.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:#9a3412;font-size:1.02rem">🔔 ${novos.length > 1 ? novos.length + ' ouvidorias novas solicitadas' : 'Ouvidoria nova solicitada'}</b><button type="button" data-x title="Fechar" style="background:#1f2937;color:#fff;border:0;border-radius:6px;padding:2px 9px;cursor:pointer">×</button></div>
+      <div style="margin:8px 0;color:#111827;font-weight:600">${novos.slice(0, 4).map(s => esc(descreverPedido(s)) + (s.por ? ` <span style="color:#374151;font-weight:400">· pedida por ${esc(s.por)}</span>` : '')).join('<br>')}${novos.length > 4 ? '<br>…' : ''}</div>
+      <div style="color:#111827">Temos que abrir <b style="color:#9a3412">${n}</b> ouvidoria${n > 1 ? 's' : ''}. <button type="button" class="btn primary" data-ver style="margin-left:6px">Ver</button></div>`;
     nt.hidden = false;
     nt.querySelector('[data-x]').onclick = () => { nt.hidden = true; };
     nt.querySelector('[data-ver]').onclick = () => { nt.hidden = true; solFiltro = 'abrir'; try{ $('solFiltro').querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c.dataset.sf === 'abrir')); }catch(e){} irPara('solicitadas'); };
@@ -3009,6 +3017,7 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
   async function salvarSolicitacoes(){
     const x = solAtual, n = +x.tipo, ROT = Object.fromEntries(SOL_CAMPOS), msg = t => { $('solMsgSalvar').textContent = t; };
     if(!n) return msg('Escolha o tipo de reclamação.');
+    if(!googleOn() && !x.semGoogleOk){ x.semGoogleOk = true; return msg('⚠ O Google não está conectado: o pedido não vai para a planilha Ouvidorias Solicitadas. Conecte no topo da página, ou clique de novo em Solicitar para salvar mesmo assim.'); }
     if(!x.mesRef) return msg('Escolha o mês de referência (o mês a que o problema se refere).');
     const faltam = obrigatorios(n).filter(k => !String(x.dados[k] || '').trim());
     if(faltam.length && !x.file && !x.usinaPrint) return msg('Anexe o print da tela ou preencha: ' + faltam.map(k => ROT[k] || k).join(', ') + '.');
@@ -3228,6 +3237,15 @@ Peço que sejam tomadas as providências necessárias com a maior brevidade poss
     const b = $('gGeral'); if(!b) return;
     const g = G(); if(!g){ b.hidden = true; return; }
     const on = !!(g.conectado && g.conectado());
+    // aviso grande enquanto o Google não estiver conectado: sem ele, nada vai para as planilhas
+    const av = $('gAviso');
+    if(av && av.dataset.on !== String(on)){
+      av.dataset.on = String(on); av.hidden = on; av.style.display = on ? 'none' : 'flex';
+      if(!on){
+        av.innerHTML = '<span style="font-size:1.3em">⚠</span><span style="flex:1;min-width:240px;color:#78350f"><b style="color:#78350f">Conecte o Google antes de começar.</b> Sem ele, as ouvidorias que você solicitar, gerar ou registrar não vão para as planilhas (Controler Ouvidoria, Ouvidorias Solicitadas e Planilhas das ouvidorias). A conexão vale por 1 hora.</span><button type="button" class="btn" style="background:#b45309;color:#fff;border-color:#b45309;font-weight:600">Conectar Google agora</button>';
+        av.querySelector('button').onclick = () => b.click();
+      }
+    }
     if(b.dataset.on === String(on) && !b.hidden) return;
     b.dataset.on = String(on); b.hidden = false;
     b.textContent = on ? '✓ Google conectado' : 'Conectar Google';
